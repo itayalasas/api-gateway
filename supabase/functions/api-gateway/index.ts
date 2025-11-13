@@ -6,31 +6,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey, X-Integration-Key, X-Integration-Id',
 };
 
-interface IntegrationConfig {
-  id: string;
-  source_api_id: string;
-  target_api_id: string;
-  source_endpoint_id: string | null;
-  target_endpoint_id: string | null;
-  is_active: boolean;
-  transform_config: any;
-}
-
-interface APIConfig {
-  id: string;
-  base_url: string;
-  type: string;
-}
-
-interface EndpointConfig {
-  id: string;
-  path: string;
-  method: string;
-}
-
-interface APISecurityConfig {
-  auth_type: string;
-  auth_config: any;
+interface WebhookConfig {
+  database_query?: {
+    enabled: boolean;
+    table: string;
+    select: string;
+    filters?: Record<string, any>;
+    order_by?: string;
+    limit?: number;
+  };
+  data_mapping?: {
+    enabled: boolean;
+    mappings?: Array<{
+      source: string;
+      target: string;
+      transform?: string;
+    }>;
+  };
+  merge_strategy?: 'combine' | 'replace' | 'db_only';
 }
 
 Deno.serve(async (req: Request) => {
@@ -45,7 +38,7 @@ Deno.serve(async (req: Request) => {
 
     const url = new URL(req.url);
     const pathParts = url.pathname.split('/').filter(p => p);
-    
+
     if (pathParts.length < 2) {
       return new Response(
         JSON.stringify({ error: 'Integration ID is required in path: /api-gateway/{integration-id}' }),
@@ -57,7 +50,6 @@ Deno.serve(async (req: Request) => {
     const requestId = crypto.randomUUID();
     const startTime = Date.now();
 
-    // Check authentication: either Supabase anon key OR integration API key
     const authHeader = req.headers.get('Authorization');
     const integrationKey = req.headers.get('X-Integration-Key');
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -75,7 +67,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Validate authentication
     const isValidAnonKey = authHeader === `Bearer ${anonKey}`;
     const isValidIntegrationKey = integrationKey === integration.api_key;
 
@@ -88,7 +79,7 @@ Deno.serve(async (req: Request) => {
         headers: Object.fromEntries(req.headers.entries()),
         body: null,
         response_status: 401,
-        response_body: { error: 'Unauthorized', message: 'Missing or invalid authentication' },
+        response_body: { error: 'Unauthorized' },
         response_time_ms: Date.now() - startTime,
         error_message: 'Missing or invalid authentication header',
         created_at: new Date().toISOString()
@@ -108,6 +99,97 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ error: 'Integration is not active' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    const requestBody = req.method !== 'GET' && req.method !== 'HEAD'
+      ? await req.text()
+      : null;
+
+    let parsedBody = null;
+    try {
+      parsedBody = requestBody ? JSON.parse(requestBody) : null;
+    } catch {
+      parsedBody = requestBody;
+    }
+
+    const integrationType = integration.integration_type || 'api_to_api';
+    const webhookConfig = integration.webhook_config as WebhookConfig || {};
+
+    let dataToSend = parsedBody || {};
+    let dbResults = null;
+
+    if ((integrationType === 'webhook' || integrationType === 'database_query') &&
+        integration.allow_database_access &&
+        webhookConfig.database_query?.enabled) {
+
+      try {
+        dbResults = await queryDatabase(supabase, webhookConfig.database_query, parsedBody);
+
+        const mergeStrategy = webhookConfig.merge_strategy || 'combine';
+
+        if (mergeStrategy === 'combine') {
+          dataToSend = {
+            ...parsedBody,
+            db_results: dbResults
+          };
+        } else if (mergeStrategy === 'db_only') {
+          dataToSend = dbResults;
+        } else if (mergeStrategy === 'replace') {
+          dataToSend = { ...parsedBody };
+        }
+
+        if (webhookConfig.data_mapping?.enabled && webhookConfig.data_mapping?.mappings) {
+          dataToSend = applyDataMapping(dataToSend, webhookConfig.data_mapping.mappings, parsedBody, dbResults);
+        }
+      } catch (dbError) {
+        const errorMessage = dbError instanceof Error ? dbError.message : 'Database query failed';
+        await logRequest(supabase, {
+          integration_id: integrationId,
+          request_id: requestId,
+          method: req.method,
+          path: url.pathname,
+          headers: Object.fromEntries(req.headers.entries()),
+          body: parsedBody,
+          response_status: 500,
+          response_body: { error: 'Database query failed' },
+          response_time_ms: Date.now() - startTime,
+          error_message: errorMessage,
+          created_at: new Date().toISOString()
+        });
+
+        return new Response(
+          JSON.stringify({ error: 'Database query failed', details: errorMessage }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    if (integrationType === 'database_query') {
+      const responseTime = Date.now() - startTime;
+
+      await logRequest(supabase, {
+        integration_id: integrationId,
+        request_id: requestId,
+        method: req.method,
+        path: url.pathname,
+        headers: Object.fromEntries(req.headers.entries()),
+        body: parsedBody,
+        response_status: 200,
+        response_body: dataToSend,
+        response_time_ms: responseTime,
+        error_message: null,
+        created_at: new Date().toISOString()
+      });
+
+      return new Response(JSON.stringify(dataToSend), {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'X-Request-Id': requestId,
+          'X-Response-Time': `${responseTime}ms`,
+        },
+      });
     }
 
     const { data: targetApi } = await supabase
@@ -135,7 +217,7 @@ Deno.serve(async (req: Request) => {
         method: req.method,
         path: url.pathname,
         headers: Object.fromEntries(req.headers.entries()),
-        body: null,
+        body: parsedBody,
         response_status: 500,
         response_body: { error: 'Target API configuration not found' },
         response_time_ms: Date.now() - startTime,
@@ -149,26 +231,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const requestBody = req.method !== 'GET' && req.method !== 'HEAD' 
-      ? await req.text() 
-      : null;
-    
-    let parsedBody = null;
-    try {
-      parsedBody = requestBody ? JSON.parse(requestBody) : null;
-    } catch {
-      parsedBody = requestBody;
-    }
-
     const targetUrl = `${targetApi.base_url}${targetEndpoint.path}`;
-
     const targetHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
     if (security && security.auth_type !== 'none') {
       const authConfig = security.auth_config as any;
-      
+
       switch (security.auth_type) {
         case 'api_key':
           if (authConfig.headerName && authConfig.apiKey) {
@@ -193,7 +263,7 @@ Deno.serve(async (req: Request) => {
       const targetResponse = await fetch(targetUrl, {
         method: targetEndpoint.method,
         headers: targetHeaders,
-        body: requestBody || undefined,
+        body: JSON.stringify(dataToSend),
       });
 
       const responseText = await targetResponse.text();
@@ -262,6 +332,96 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
+
+async function queryDatabase(supabase: any, queryConfig: any, incomingData: any) {
+  const { table, select, filters, order_by, limit } = queryConfig;
+
+  let query = supabase.from(table).select(select || '*');
+
+  if (filters) {
+    for (const [key, value] of Object.entries(filters)) {
+      if (typeof value === 'string' && value.startsWith('${incoming.')) {
+        const path = value.substring(11, value.length - 1);
+        const actualValue = getNestedValue(incomingData, path);
+        query = query.eq(key, actualValue);
+      } else {
+        query = query.eq(key, value);
+      }
+    }
+  }
+
+  if (order_by) {
+    const [column, direction] = order_by.split(' ');
+    query = query.order(column, { ascending: direction?.toLowerCase() !== 'desc' });
+  }
+
+  if (limit) {
+    query = query.limit(limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Database query error: ${error.message}`);
+  }
+
+  return data;
+}
+
+function applyDataMapping(
+  currentData: any,
+  mappings: Array<{ source: string; target: string; transform?: string }>,
+  incomingData: any,
+  dbResults: any
+): any {
+  const result = { ...currentData };
+
+  for (const mapping of mappings) {
+    let value;
+
+    if (mapping.source.startsWith('incoming.')) {
+      const path = mapping.source.substring(9);
+      value = getNestedValue(incomingData, path);
+    } else if (mapping.source.startsWith('db.')) {
+      const path = mapping.source.substring(3);
+      value = getNestedValue(dbResults, path);
+    } else {
+      value = getNestedValue(currentData, mapping.source);
+    }
+
+    setNestedValue(result, mapping.target, value);
+  }
+
+  return result;
+}
+
+function getNestedValue(obj: any, path: string): any {
+  return path.split('.').reduce((current, key) => {
+    if (current === null || current === undefined) return undefined;
+
+    const arrayMatch = key.match(/^(\w+)\[(\d+)\]$/);
+    if (arrayMatch) {
+      const [, arrayName, index] = arrayMatch;
+      return current[arrayName]?.[parseInt(index)];
+    }
+
+    return current[key];
+  }, obj);
+}
+
+function setNestedValue(obj: any, path: string, value: any): void {
+  const keys = path.split('.');
+  const lastKey = keys.pop()!;
+
+  const target = keys.reduce((current, key) => {
+    if (!(key in current)) {
+      current[key] = {};
+    }
+    return current[key];
+  }, obj);
+
+  target[lastKey] = value;
+}
 
 async function logRequest(supabase: any, logData: any) {
   try {

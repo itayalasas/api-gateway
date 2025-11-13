@@ -13,7 +13,6 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
     { id: 'dashboard', icon: Home, label: 'Panel' },
     { id: 'apis', icon: Settings, label: 'APIs' },
     { id: 'integrations', icon: Link2, label: 'Integraciones' },
-    { id: 'logs', icon: FileText, label: 'Registros' },
     { id: 'monitoring', icon: Activity, label: 'Monitoreo' },
   ];
 
