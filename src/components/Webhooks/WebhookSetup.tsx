@@ -11,7 +11,8 @@ export function WebhookSetup() {
   const [apis, setApis] = useState<API[]>([]);
   const [selectedIntegration, setSelectedIntegration] = useState<string>('');
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -41,10 +42,18 @@ export function WebhookSetup() {
     if (apisData) setApis(apisData);
   };
 
-  const copyToClipboard = () => {
+  const copyUrlToClipboard = () => {
     navigator.clipboard.writeText(webhookUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
+  const copyKeyToClipboard = () => {
+    if (selectedInt?.api_key) {
+      navigator.clipboard.writeText(selectedInt.api_key);
+      setCopiedKey(true);
+      setTimeout(() => setCopiedKey(false), 2000);
+    }
   };
 
   const selectedInt = integrations.find(i => i.id === selectedIntegration);
@@ -123,10 +132,10 @@ export function WebhookSetup() {
                   {webhookUrl}
                 </code>
                 <button
-                  onClick={copyToClipboard}
+                  onClick={copyUrlToClipboard}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg flex items-center gap-2 transition-colors flex-shrink-0"
                 >
-                  {copied ? (
+                  {copiedUrl ? (
                     <>
                       <CheckCircle className="w-5 h-5" />
                       Copiado
@@ -148,14 +157,18 @@ export function WebhookSetup() {
                   {selectedInt.api_key || 'No generada'}
                 </code>
                 <button
-                  onClick={() => {
-                    if (selectedInt.api_key) {
-                      navigator.clipboard.writeText(selectedInt.api_key);
-                    }
-                  }}
-                  className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded text-sm transition-colors"
+                  onClick={copyKeyToClipboard}
+                  disabled={!selectedInt?.api_key}
+                  className="bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:cursor-not-allowed text-white px-3 py-2 rounded text-sm transition-colors flex items-center gap-1"
                 >
-                  <Copy className="w-4 h-4" />
+                  {copiedKey ? (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-xs">✓</span>
+                    </>
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
                 </button>
               </div>
               <p className="text-xs text-slate-400 mt-2">

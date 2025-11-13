@@ -30,6 +30,24 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Create trigger function to auto-generate API key on insert
+CREATE OR REPLACE FUNCTION set_integration_api_key()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.api_key IS NULL THEN
+    NEW.api_key := generate_api_key();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger
+DROP TRIGGER IF EXISTS trigger_set_integration_api_key ON integrations;
+CREATE TRIGGER trigger_set_integration_api_key
+  BEFORE INSERT ON integrations
+  FOR EACH ROW
+  EXECUTE FUNCTION set_integration_api_key();
+
 -- Generate API keys for existing integrations that don't have one
 UPDATE integrations
 SET api_key = generate_api_key()
