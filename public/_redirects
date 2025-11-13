@@ -1,1 +1,5 @@
+# API Gateway proxy - redirect clean URLs to Supabase Functions
+/v1/api-gateway/*  https://gdissdewzygwtetmqrjz.supabase.co/functions/v1/api-gateway/:splat  200!
+
+# SPA fallback
 /*    /index.html   200
