@@ -39,14 +39,23 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const pathParts = url.pathname.split('/').filter(p => p);
 
-    if (pathParts.length < 2) {
+    let integrationId: string;
+
+    if (pathParts.includes('api-gateway')) {
+      const gatewayIndex = pathParts.indexOf('api-gateway');
+      if (gatewayIndex === -1 || pathParts.length <= gatewayIndex + 1) {
+        return new Response(
+          JSON.stringify({ error: 'Integration ID is required in path: /api-gateway/{integration-id}' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      integrationId = pathParts[gatewayIndex + 1];
+    } else {
       return new Response(
-        JSON.stringify({ error: 'Integration ID is required in path: /api-gateway/{integration-id}' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'requested path is invalid' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const integrationId = pathParts[1];
     const requestId = crypto.randomUUID();
     const startTime = Date.now();
 
