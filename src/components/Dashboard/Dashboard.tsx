@@ -34,6 +34,7 @@ export function Dashboard() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [apis, setApis] = useState<API[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   useEffect(() => {
     loadDashboardData();
@@ -42,7 +43,9 @@ export function Dashboard() {
   }, []);
 
   const loadDashboardData = async () => {
-    setLoading(true);
+    if (initialLoad) {
+      setLoading(true);
+    }
 
     const [
       { data: apisData },
@@ -98,6 +101,9 @@ export function Dashboard() {
       healthyAPIs
     });
 
+    if (initialLoad) {
+      setInitialLoad(false);
+    }
     setLoading(false);
   };
 

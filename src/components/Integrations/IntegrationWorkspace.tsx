@@ -20,6 +20,7 @@ export function IntegrationWorkspace() {
   const [integrations, setIntegrations] = useState<IntegrationWithAPIs[]>([]);
   const [apis, setApis] = useState<API[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingIntegration, setEditingIntegration] = useState<Integration | null>(null);
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationWithAPIs | null>(null);
@@ -29,7 +30,9 @@ export function IntegrationWorkspace() {
   }, []);
 
   const loadData = async () => {
-    setLoading(true);
+    if (initialLoad) {
+      setLoading(true);
+    }
 
     const [{ data: apisData }, { data: integrationsData }, { data: endpointsData }] = await Promise.all([
       supabase.from('apis').select('*'),
@@ -57,6 +60,9 @@ export function IntegrationWorkspace() {
       setIntegrations(integrationsWithAPIs);
     }
 
+    if (initialLoad) {
+      setInitialLoad(false);
+    }
     setLoading(false);
   };
 

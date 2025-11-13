@@ -14,6 +14,7 @@ interface APIWithSecurity extends API {
 export function APIList() {
   const [apis, setApis] = useState<APIWithSecurity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingAPI, setEditingAPI] = useState<API | null>(null);
 
@@ -22,7 +23,9 @@ export function APIList() {
   }, []);
 
   const loadAPIs = async () => {
-    setLoading(true);
+    if (initialLoad) {
+      setLoading(true);
+    }
     const { data: apisData, error: apisError } = await supabase
       .from('apis')
       .select('*')
@@ -44,6 +47,9 @@ export function APIList() {
     }));
 
     setApis(apisWithSecurity);
+    if (initialLoad) {
+      setInitialLoad(false);
+    }
     setLoading(false);
   };
 

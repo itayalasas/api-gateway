@@ -13,6 +13,7 @@ interface APIWithHealth extends API {
 export function HealthMonitor() {
   const [apis, setApis] = useState<APIWithHealth[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [checking, setChecking] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,7 +23,9 @@ export function HealthMonitor() {
   }, []);
 
   const loadData = async () => {
-    setLoading(true);
+    if (initialLoad) {
+      setLoading(true);
+    }
 
     const { data: apisData } = await supabase
       .from('apis')
@@ -50,6 +53,9 @@ export function HealthMonitor() {
       setApis(apisWithHealth);
     }
 
+    if (initialLoad) {
+      setInitialLoad(false);
+    }
     setLoading(false);
   };
 
