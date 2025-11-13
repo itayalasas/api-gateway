@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const supabase = createClient(
-  'https://gdissdewzygwtetmqrjz.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkaXNzZGV3enlnd3RldG1xcmp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5OTQ0NzksImV4cCI6MjA3ODU3MDQ3OX0.WSSzxFI-b0D_gVSyPp7ITywWxkvVHyoF9xjR3gy6xWk'
+  'https://duwrfywuhorgkwnouqls.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1d3JmeXd1aG9yZ2t3bm91cWxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NjE0MzYsImV4cCI6MjA3ODUzNzQzNn0.pcS6LoFHxH_ZKcJ7rdYRJ1pYWqxnezgmIS_GkAqEoyw'
 );
 
 interface ExportData {
@@ -181,12 +181,12 @@ async function exportDatabase() {
 
       try {
         const response = await fetch(
-          `https://gdissdewzygwtetmqrjz.supabase.co/rest/v1/rpc/pg_catalog`,
+          `https://duwrfywuhorgkwnouqls.supabase.co/rest/v1/rpc/pg_catalog`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkaXNzZGV3enlnd3RldG1xcmp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5OTQ0NzksImV4cCI6MjA3ODU3MDQ3OX0.WSSzxFI-b0D_gVSyPp7ITywWxkvVHyoF9xjR3gy6xWk'
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1d3JmeXd1aG9yZ2t3bm91cWxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NjE0MzYsImV4cCI6MjA3ODUzNzQzNn0.pcS6LoFHxH_ZKcJ7rdYRJ1pYWqxnezgmIS_GkAqEoyw'
             }
           }
         );

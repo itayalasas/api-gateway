@@ -1,0 +1,127 @@
+{
+  "exportDate": "2025-11-13T04:30:54.494Z",
+  "database": "FlowBridge API Gateway",
+  "users": [],
+  "tables": {
+    "apis": [],
+    "api_security": [],
+    "api_endpoints": [],
+    "integrations": [],
+    "request_logs": [],
+    "health_checks": []
+  },
+  "functions": [
+    {
+      "name": "update_updated_at_column",
+      "description": "Trigger function to automatically update updated_at timestamp",
+      "language": "plpgsql"
+    },
+    {
+      "name": "generate_api_key",
+      "description": "Generates secure API keys with int_ prefix",
+      "language": "plpgsql"
+    },
+    {
+      "name": "set_integration_api_key",
+      "description": "Trigger function to auto-generate API keys on integration insert",
+      "language": "plpgsql"
+    }
+  ],
+  "triggers": [
+    {
+      "name": "update_apis_updated_at",
+      "table": "apis",
+      "function": "update_updated_at_column"
+    },
+    {
+      "name": "update_api_security_updated_at",
+      "table": "api_security",
+      "function": "update_updated_at_column"
+    },
+    {
+      "name": "update_api_endpoints_updated_at",
+      "table": "api_endpoints",
+      "function": "update_updated_at_column"
+    },
+    {
+      "name": "update_integrations_updated_at",
+      "table": "integrations",
+      "function": "update_updated_at_column"
+    },
+    {
+      "name": "trigger_set_integration_api_key",
+      "table": "integrations",
+      "function": "set_integration_api_key"
+    }
+  ],
+  "policies": [
+    {
+      "table": "apis",
+      "count": 4,
+      "types": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "table": "api_security",
+      "count": 4,
+      "types": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "table": "api_endpoints",
+      "count": 4,
+      "types": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "table": "integrations",
+      "count": 4,
+      "types": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "table": "request_logs",
+      "count": 2,
+      "types": [
+        "SELECT",
+        "INSERT"
+      ]
+    },
+    {
+      "table": "health_checks",
+      "count": 2,
+      "types": [
+        "SELECT",
+        "INSERT"
+      ]
+    }
+  ],
+  "statistics": {
+    "totalUsers": 0,
+    "totalRecords": 0,
+    "tablesCount": {
+      "apis": 0,
+      "api_security": 0,
+      "api_endpoints": 0,
+      "integrations": 0,
+      "request_logs": 0,
+      "health_checks": 0
+    }
+  }
+}
