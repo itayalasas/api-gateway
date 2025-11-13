@@ -21,12 +21,10 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
     <div className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
       <div className="p-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-            <Link2 className="w-6 h-6 text-white" />
-          </div>
+          <img src="/flowbridge-icon.svg" alt="FlowBridge" className="w-10 h-10" />
           <div>
-            <h1 className="text-lg font-bold text-white">API Gateway</h1>
-            <p className="text-xs text-slate-400">Gestor de Integraciones</p>
+            <h1 className="text-lg font-bold text-white">FlowBridge</h1>
+            <p className="text-xs text-slate-400">API Integration Platform</p>
           </div>
         </div>
       </div>

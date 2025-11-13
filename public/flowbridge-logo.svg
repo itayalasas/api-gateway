@@ -1,0 +1,20 @@
+<svg width="160" height="40" viewBox="0 0 160 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon -->
+  <rect x="4" y="4" width="32" height="32" rx="6" fill="url(#logoGradient)"/>
+  <path d="M12 20L16 16L20 20L24 16L28 20" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12" cy="20" r="1.5" fill="white"/>
+  <circle cx="20" cy="20" r="1.5" fill="white"/>
+  <circle cx="28" cy="20" r="1.5" fill="white"/>
+
+  <!-- Text: FlowBridge -->
+  <text x="44" y="26" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="#0f172a">
+    Flow<tspan fill="#0ea5e9">Bridge</tspan>
+  </text>
+
+  <defs>
+    <linearGradient id="logoGradient" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+</svg>

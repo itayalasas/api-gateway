@@ -1,8 +1,9 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "flowbridge",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "FlowBridge - Professional API Gateway and Integration Management Platform",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

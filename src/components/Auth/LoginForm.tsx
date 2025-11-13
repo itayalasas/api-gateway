@@ -32,11 +32,9 @@ export function LoginForm() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
-            <LogIn className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Gestor de API Gateway</h1>
-          <p className="text-slate-400">Gestiona tus integraciones y APIs</p>
+          <img src="/flowbridge-logo.svg" alt="FlowBridge" className="h-12 mx-auto mb-4" />
+          <h1 className="text-3xl font-bold text-white mb-2">FlowBridge</h1>
+          <p className="text-slate-400">Professional API Integration Platform</p>
         </div>
 
         <div className="bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-700">
