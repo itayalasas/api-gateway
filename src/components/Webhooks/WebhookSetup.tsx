@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Webhook, Database, Copy, CheckCircle, AlertCircle, ExternalLink, Info } from 'lucide-react';
+import { Webhook, Database, Copy, CheckCircle, AlertCircle, ExternalLink, Info, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database as DB } from '../../lib/database.types';
 
@@ -14,6 +14,7 @@ export function WebhookSetup() {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
+  const [regeneratingKey, setRegeneratingKey] = useState(false);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
@@ -53,6 +54,30 @@ export function WebhookSetup() {
       navigator.clipboard.writeText(selectedInt.api_key);
       setCopiedKey(true);
       setTimeout(() => setCopiedKey(false), 2000);
+    }
+  };
+
+  const regenerateApiKey = async () => {
+    if (!selectedInt?.id) return;
+
+    setRegeneratingKey(true);
+    try {
+      const newKey = 'int_' + Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      const { error } = await supabase
+        .from('integrations')
+        .update({ api_key: newKey })
+        .eq('id', selectedInt.id);
+
+      if (!error) {
+        await loadData();
+      }
+    } catch (error) {
+      console.error('Error regenerating API key:', error);
+    } finally {
+      setRegeneratingKey(false);
     }
   };
 
@@ -153,13 +178,14 @@ export function WebhookSetup() {
             <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4">
               <p className="text-sm text-blue-100 font-semibold mb-2">API Key de Autenticación:</p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 bg-slate-950 px-3 py-2 rounded text-green-400 text-xs font-mono">
+                <code className="flex-1 bg-slate-950 px-3 py-2 rounded text-green-400 text-xs font-mono break-all">
                   {selectedInt.api_key || 'No generada'}
                 </code>
                 <button
                   onClick={copyKeyToClipboard}
                   disabled={!selectedInt?.api_key}
-                  className="bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:cursor-not-allowed text-white px-3 py-2 rounded text-sm transition-colors flex items-center gap-1"
+                  className="bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:cursor-not-allowed text-white px-3 py-2 rounded text-sm transition-colors flex items-center gap-1 flex-shrink-0"
+                  title="Copiar API Key"
                 >
                   {copiedKey ? (
                     <>
@@ -170,10 +196,26 @@ export function WebhookSetup() {
                     <Copy className="w-4 h-4" />
                   )}
                 </button>
+                <button
+                  onClick={regenerateApiKey}
+                  disabled={regeneratingKey}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white px-3 py-2 rounded text-sm transition-colors flex items-center gap-1 flex-shrink-0"
+                  title="Regenerar API Key"
+                >
+                  <RefreshCw className={`w-4 h-4 ${regeneratingKey ? 'animate-spin' : ''}`} />
+                  {regeneratingKey ? 'Generando...' : 'Regenerar'}
+                </button>
               </div>
               <p className="text-xs text-slate-400 mt-2">
-                Incluye este header en tus requests: <code className="text-blue-400">X-Integration-Key: {selectedInt.api_key}</code>
+                Incluye este header en tus requests: <code className="text-blue-400">X-Integration-Key: {selectedInt.api_key || '[TU-API-KEY]'}</code>
               </p>
+              {!selectedInt.api_key && (
+                <div className="mt-2 bg-yellow-600/20 border border-yellow-600/40 rounded px-3 py-2">
+                  <p className="text-xs text-yellow-200">
+                    ⚠️ Esta integración no tiene API Key. Haz clic en "Regenerar" para crear una.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

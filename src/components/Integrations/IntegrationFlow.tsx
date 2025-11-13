@@ -25,7 +25,9 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
   const [loading, setLoading] = useState(true);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
   const [showGatewayConfig, setShowGatewayConfig] = useState(false);
+  const [regeneratingKey, setRegeneratingKey] = useState(false);
   const [stats, setStats] = useState({
     totalRequests: 0,
     successRate: 0,
@@ -95,6 +97,28 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
       successRate: Math.round((successfulRequests / logs.length) * 100),
       avgResponseTime: Math.round(avgTime)
     });
+  };
+
+  const regenerateApiKey = async () => {
+    setRegeneratingKey(true);
+    try {
+      const newKey = 'int_' + Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      const { error } = await supabase
+        .from('integrations')
+        .update({ api_key: newKey })
+        .eq('id', integration.id);
+
+      if (!error) {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error regenerating API key:', error);
+    } finally {
+      setRegeneratingKey(false);
+    }
   };
 
   const getStatusColor = (status: number | null) => {
@@ -284,21 +308,44 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-2">API Key de la Integración</label>
             <div className="flex items-center gap-2">
-              <div className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 font-mono text-sm text-white overflow-x-auto">
-                {integration.api_key || 'Generando...'}
+              <div className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 font-mono text-sm text-white overflow-x-auto break-all">
+                {integration.api_key || 'No generada'}
               </div>
               <button
-                onClick={() => copyToClipboard(integration.api_key || '')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg flex items-center gap-2 transition-colors"
+                onClick={() => {
+                  if (integration.api_key) {
+                    navigator.clipboard.writeText(integration.api_key);
+                    setCopiedKey(true);
+                    setTimeout(() => setCopiedKey(false), 2000);
+                  }
+                }}
+                className="bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg flex items-center gap-2 transition-colors flex-shrink-0"
                 disabled={!integration.api_key}
+                title="Copiar API Key"
               >
-                {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copiado' : 'Copiar'}
+                {copiedKey ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copiedKey ? 'Copiado' : 'Copiar'}
+              </button>
+              <button
+                onClick={regenerateApiKey}
+                disabled={regeneratingKey}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg flex items-center gap-2 transition-colors flex-shrink-0"
+                title="Regenerar API Key"
+              >
+                <RefreshCw className={`w-4 h-4 ${regeneratingKey ? 'animate-spin' : ''}`} />
+                {regeneratingKey ? 'Generando...' : 'Regenerar'}
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-1">
               Usa este API key para autenticar tus requests al gateway (Header: X-Integration-Key)
             </p>
+            {!integration.api_key && (
+              <div className="mt-2 bg-yellow-600/20 border border-yellow-600/40 rounded px-3 py-2">
+                <p className="text-xs text-yellow-200">
+                  ⚠️ Esta integración no tiene API Key. Haz clic en "Regenerar" para crear una.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4">
