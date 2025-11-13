@@ -61,14 +61,22 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
           table: 'request_logs',
           filter: `integration_id=eq.${integration.id}`
         },
-        () => {
+        (payload) => {
+          console.log('Realtime update received:', payload);
           loadLogs();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
+
+    const pollingInterval = setInterval(() => {
+      loadLogs();
+    }, 5000);
 
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollingInterval);
     };
   }, [integration.id]);
 
