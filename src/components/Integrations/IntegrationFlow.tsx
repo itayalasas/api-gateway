@@ -135,9 +135,10 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         const pathMatch = log.path?.toLowerCase().includes(searchLower);
-        const requestMatch = JSON.stringify(log.request_body).toLowerCase().includes(searchLower);
-        const responseMatch = JSON.stringify(log.response_body).toLowerCase().includes(searchLower);
-        if (!pathMatch && !requestMatch && !responseMatch) return false;
+        const requestIdMatch = log.request_id?.toLowerCase().includes(searchLower);
+        const requestMatch = log.body ? JSON.stringify(log.body).toLowerCase().includes(searchLower) : false;
+        const responseMatch = log.response_body ? JSON.stringify(log.response_body).toLowerCase().includes(searchLower) : false;
+        if (!pathMatch && !requestIdMatch && !requestMatch && !responseMatch) return false;
       }
 
       if (filters.status) {
