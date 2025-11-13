@@ -5,7 +5,6 @@ import { Sidebar } from './components/Layout/Sidebar';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import { APIList } from './components/APIs/APIList';
 import { IntegrationWorkspace } from './components/Integrations/IntegrationWorkspace';
-import { LogConsole } from './components/Logs/LogConsole';
 import { HealthMonitor } from './components/Monitoring/HealthMonitor';
 
 function AppContent() {
