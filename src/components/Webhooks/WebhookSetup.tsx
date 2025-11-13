@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Webhook, Database, Copy, CheckCircle, AlertCircle, ExternalLink, Info, RefreshCw } from 'lucide-react';
+import { Webhook, Database, Copy, CheckCircle, AlertCircle, ExternalLink, Info, RefreshCw, Settings, Activity, Send, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database as DB } from '../../lib/database.types';
 
 type Integration = DB['public']['Tables']['integrations']['Row'];
 type API = DB['public']['Tables']['apis']['Row'];
+type RequestLog = DB['public']['Tables']['request_logs']['Row'];
 
 export function WebhookSetup() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
@@ -15,6 +16,12 @@ export function WebhookSetup() {
   const [copiedKey, setCopiedKey] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [regeneratingKey, setRegeneratingKey] = useState(false);
+  const [logs, setLogs] = useState<RequestLog[]>([]);
+  const [expandedLog, setExpandedLog] = useState<string | null>(null);
+  const [showLogs, setShowLogs] = useState(true);
+  const [testPayload, setTestPayload] = useState('{\n  "test": true,\n  "message": "Hello from webhook test"\n}');
+  const [sending, setSending] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
@@ -26,6 +33,8 @@ export function WebhookSetup() {
     if (selectedIntegration && supabaseUrl) {
       const url = `${supabaseUrl}/functions/v1/api-gateway/${selectedIntegration}`;
       setWebhookUrl(url);
+      loadLogs();
+      subscribeToLogs();
     }
   }, [selectedIntegration, supabaseUrl]);
 
@@ -41,6 +50,43 @@ export function WebhookSetup() {
 
     if (integrationsData) setIntegrations(integrationsData);
     if (apisData) setApis(apisData);
+  };
+
+  const loadLogs = async () => {
+    if (!selectedIntegration) return;
+
+    const { data } = await supabase
+      .from('request_logs')
+      .select('*')
+      .eq('integration_id', selectedIntegration)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (data) setLogs(data);
+  };
+
+  const subscribeToLogs = () => {
+    if (!selectedIntegration) return;
+
+    const channel = supabase
+      .channel(`webhook_logs_${selectedIntegration}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'request_logs',
+          filter: `integration_id=eq.${selectedIntegration}`
+        },
+        () => {
+          loadLogs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   };
 
   const copyUrlToClipboard = () => {
@@ -81,6 +127,69 @@ export function WebhookSetup() {
     }
   };
 
+  const sendTestRequest = async () => {
+    if (!selectedInt?.api_key || !webhookUrl) return;
+
+    setSending(true);
+    setTestResult(null);
+
+    try {
+      let payload;
+      try {
+        payload = JSON.parse(testPayload);
+      } catch (e) {
+        setTestResult({ success: false, message: 'JSON inválido en el payload' });
+        setSending(false);
+        return;
+      }
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Integration-Key': selectedInt.api_key
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setTestResult({
+          success: true,
+          message: `✓ Webhook ejecutado exitosamente (${response.status})`
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: `✗ Error ${response.status}: ${result.message || 'Unknown error'}`
+        });
+      }
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: `✗ Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    } finally {
+      setSending(false);
+      loadLogs();
+    }
+  };
+
+  const getStatusColor = (status: number | null) => {
+    if (!status) return 'text-slate-400';
+    if (status >= 200 && status < 300) return 'text-green-400';
+    if (status >= 400 && status < 500) return 'text-yellow-400';
+    return 'text-red-400';
+  };
+
+  const getStatusBadge = (status: number | null) => {
+    if (!status) return 'bg-slate-700';
+    if (status >= 200 && status < 300) return 'bg-green-600';
+    if (status >= 400 && status < 500) return 'bg-yellow-600';
+    return 'bg-red-600';
+  };
+
   const selectedInt = integrations.find(i => i.id === selectedIntegration);
   const sourceApi = apis.find(a => a.id === selectedInt?.source_api_id);
   const targetApi = apis.find(a => a.id === selectedInt?.target_api_id);
@@ -92,7 +201,7 @@ export function WebhookSetup() {
           <Webhook className="w-8 h-8" />
           <div>
             <h2 className="text-2xl font-bold">Configuración de Webhooks</h2>
-            <p className="text-blue-100">Guía paso a paso para conectar sistemas externos</p>
+            <p className="text-blue-100">Configura y monitorea tus webhooks en tiempo real</p>
           </div>
         </div>
       </div>
@@ -101,7 +210,7 @@ export function WebhookSetup() {
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-yellow-100">
-            <p className="font-semibold mb-1">⚠️ Limitación Importante</p>
+            <p className="font-semibold mb-1">Limitación Importante</p>
             <p className="text-yellow-200">
               Las consultas a base de datos SOLO funcionan con <strong>tu base de datos de Supabase</strong>.
               No puedes conectarte a bases de datos externas directamente.
@@ -220,47 +329,141 @@ export function WebhookSetup() {
           </div>
 
           <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Paso 3: Configurar en {sourceApi?.name || 'Sistema Externo'}
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Send className="w-5 h-5" />
+              Paso 3: Probar Webhook
             </h3>
 
             <div className="space-y-4">
-              <div className="bg-slate-900 rounded-lg p-4">
-                <p className="text-sm font-semibold text-white mb-2">Ejemplo: Configuración en Stripe</p>
-                <ol className="text-sm text-slate-300 space-y-2 list-decimal list-inside">
-                  <li>Ve a Stripe Dashboard → Developers → Webhooks</li>
-                  <li>Click en "Add endpoint"</li>
-                  <li>Pega la URL del webhook arriba</li>
-                  <li>Agrega el header personalizado:
-                    <div className="bg-slate-950 px-3 py-2 rounded mt-1 font-mono text-xs">
-                      Header: X-Integration-Key<br />
-                      Value: {selectedInt.api_key}
-                    </div>
-                  </li>
-                  <li>Selecciona los eventos que quieres recibir</li>
-                  <li>Click en "Add endpoint"</li>
-                </ol>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Payload de Prueba (JSON):
+                </label>
+                <textarea
+                  value={testPayload}
+                  onChange={(e) => setTestPayload(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-blue-500 min-h-[120px]"
+                  placeholder='{\n  "test": true\n}'
+                />
               </div>
 
-              <div className="bg-slate-900 rounded-lg p-4">
-                <p className="text-sm font-semibold text-white mb-2">Ejemplo: Configuración Generic con cURL</p>
-                <div className="bg-slate-950 px-3 py-2 rounded overflow-x-auto">
-                  <pre className="text-xs text-slate-300 font-mono">
-{`curl -X POST \\
-  '${webhookUrl}' \\
-  -H 'X-Integration-Key: ${selectedInt.api_key}' \\
-  -H 'Content-Type: application/json' \\
-  -d '{
-    "event": "test",
-    "data": {
-      "user_id": "123",
-      "amount": 100
-    }
-  }'`}
-                  </pre>
+              <button
+                onClick={sendTestRequest}
+                disabled={sending || !selectedInt.api_key}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors font-semibold"
+              >
+                {sending ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5" />
+                    Enviar Petición de Prueba
+                  </>
+                )}
+              </button>
+
+              {testResult && (
+                <div className={`rounded-lg p-4 ${testResult.success ? 'bg-green-600/10 border border-green-600/30' : 'bg-red-600/10 border border-red-600/30'}`}>
+                  <p className={`text-sm font-semibold ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                    {testResult.message}
+                  </p>
                 </div>
-              </div>
+              )}
             </div>
+          </div>
+
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <div
+              className="flex items-center justify-between cursor-pointer mb-4"
+              onClick={() => setShowLogs(!showLogs)}
+            >
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Activity className="w-5 h-5" />
+                Logs de Peticiones
+                <span className="text-sm text-slate-400 font-normal">({logs.length})</span>
+              </h3>
+              <button className="text-slate-400 hover:text-white transition-colors">
+                {showLogs ? <ChevronDown className="w-6 h-6" /> : <ChevronRight className="w-6 h-6" />}
+              </button>
+            </div>
+
+            {showLogs && (
+              <div className="space-y-2">
+                {logs.length === 0 ? (
+                  <div className="bg-slate-900 rounded-lg p-8 text-center">
+                    <Activity className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                    <p className="text-slate-400">No hay peticiones registradas aún</p>
+                    <p className="text-sm text-slate-500 mt-1">Envía una petición de prueba para empezar</p>
+                  </div>
+                ) : (
+                  logs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden"
+                    >
+                      <div
+                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-800/50 transition-colors"
+                        onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
+                      >
+                        <div className="flex items-center gap-3 flex-1">
+                          <span className={`px-2 py-1 rounded text-xs font-mono ${getStatusBadge(log.response_status)}`}>
+                            {log.response_status || 'PENDING'}
+                          </span>
+                          <span className="text-white font-mono text-sm">{log.method}</span>
+                          <span className="text-slate-400 text-sm">
+                            {new Date(log.created_at).toLocaleString()}
+                          </span>
+                          {log.response_time_ms && (
+                            <span className="text-slate-500 text-xs">
+                              {log.response_time_ms}ms
+                            </span>
+                          )}
+                        </div>
+                        {expandedLog === log.id ? (
+                          <ChevronDown className="w-5 h-5 text-slate-400" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5 text-slate-400" />
+                        )}
+                      </div>
+
+                      {expandedLog === log.id && (
+                        <div className="border-t border-slate-700 p-4 space-y-3">
+                          {log.request_body && (
+                            <div>
+                              <p className="text-xs font-semibold text-slate-400 mb-1">Request Body:</p>
+                              <pre className="bg-slate-950 p-3 rounded text-xs text-slate-300 overflow-x-auto">
+                                {JSON.stringify(log.request_body, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+
+                          {log.response_body && (
+                            <div>
+                              <p className="text-xs font-semibold text-slate-400 mb-1">Response Body:</p>
+                              <pre className="bg-slate-950 p-3 rounded text-xs text-slate-300 overflow-x-auto">
+                                {JSON.stringify(log.response_body, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+
+                          {log.error_message && (
+                            <div>
+                              <p className="text-xs font-semibold text-red-400 mb-1">Error:</p>
+                              <div className="bg-red-950/50 border border-red-900/50 p-3 rounded text-xs text-red-300">
+                                {log.error_message}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
 
           {selectedInt.integration_type === 'webhook' && selectedInt.allow_database_access && (
@@ -302,37 +505,6 @@ export function WebhookSetup() {
               )}
             </div>
           )}
-
-          <div className="bg-green-600/10 border border-green-600/30 rounded-xl p-6">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0" />
-              <div>
-                <h3 className="text-lg font-semibold text-green-400 mb-2">¿Cómo Funciona?</h3>
-                <ol className="text-sm text-green-100 space-y-2 list-decimal list-inside">
-                  <li>
-                    <strong>{sourceApi?.name || 'Sistema externo'}</strong> envía datos al webhook URL
-                  </li>
-                  <li>
-                    El API Gateway valida el API Key
-                  </li>
-                  {selectedInt.allow_database_access && (
-                    <li>
-                      Si está configurado, consulta tu <strong>base de datos Supabase</strong>
-                    </li>
-                  )}
-                  <li>
-                    Transforma y mapea los datos según la configuración
-                  </li>
-                  <li>
-                    Envía los datos a <strong>{targetApi?.name || 'sistema destino'}</strong>
-                  </li>
-                  <li>
-                    Todo se registra en los logs para debugging
-                  </li>
-                </ol>
-              </div>
-            </div>
-          </div>
         </>
       )}
 
@@ -341,8 +513,8 @@ export function WebhookSetup() {
           <Webhook className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">Selecciona una Integración</h3>
           <p className="text-slate-400 max-w-md mx-auto">
-            Elige una integración de la lista arriba para ver su configuración de webhook
-            y la URL que debes usar en sistemas externos.
+            Elige una integración de la lista arriba para configurar su webhook,
+            enviar peticiones de prueba y ver los logs en tiempo real.
           </p>
         </div>
       )}
