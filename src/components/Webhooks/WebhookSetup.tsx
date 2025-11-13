@@ -30,21 +30,24 @@ export function WebhookSetup() {
   });
   const [sending, setSending] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [gatewayDomain, setGatewayDomain] = useState<string>('');
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
   useEffect(() => {
     loadData();
+    loadGatewayConfig();
   }, []);
 
   useEffect(() => {
-    if (selectedIntegration && supabaseUrl) {
-      const url = `${supabaseUrl}/functions/v1/api-gateway/${selectedIntegration}`;
+    if (selectedIntegration) {
+      const baseUrl = gatewayDomain || `${supabaseUrl}/functions/v1/api-gateway`;
+      const url = `https://${baseUrl}/${selectedIntegration}`;
       setWebhookUrl(url);
       loadLogs();
       subscribeToLogs();
     }
-  }, [selectedIntegration, supabaseUrl]);
+  }, [selectedIntegration, supabaseUrl, gatewayDomain]);
 
   const loadData = async () => {
     const { data: integrationsData } = await supabase
@@ -58,6 +61,18 @@ export function WebhookSetup() {
 
     if (integrationsData) setIntegrations(integrationsData);
     if (apisData) setApis(apisData);
+  };
+
+  const loadGatewayConfig = async () => {
+    const { data } = await supabase
+      .from('system_config')
+      .select('config_value')
+      .eq('config_key', 'gateway_domain')
+      .maybeSingle();
+
+    if (data?.config_value) {
+      setGatewayDomain(data.config_value);
+    }
   };
 
   const loadLogs = async () => {
