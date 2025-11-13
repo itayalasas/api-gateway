@@ -178,14 +178,14 @@ export function LogStream({ logs, onLogClick, expandedLog }: LogStreamProps) {
                   </div>
 
                   {/* Request Body */}
-                  {log.request_body && (
+                  {log.body && (
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-[10px] font-mono font-semibold text-blue-400">→ REQUEST ENVIADO</span>
                         <div className="h-px flex-1 bg-slate-800"></div>
                       </div>
                       <pre className="bg-slate-950 border border-slate-800 rounded p-3 text-[11px] text-slate-300 overflow-x-auto leading-relaxed">
-{JSON.stringify(log.request_body, null, 2)}
+{JSON.stringify(log.body, null, 2)}
                       </pre>
                     </div>
                   )}
