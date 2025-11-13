@@ -6,6 +6,7 @@ import { Dashboard } from './components/Dashboard/Dashboard';
 import { APIList } from './components/APIs/APIList';
 import { IntegrationWorkspace } from './components/Integrations/IntegrationWorkspace';
 import { HealthMonitor } from './components/Monitoring/HealthMonitor';
+import { WebhookSetup } from './components/Webhooks/WebhookSetup';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -31,6 +32,8 @@ function AppContent() {
         return <APIList />;
       case 'integrations':
         return <IntegrationWorkspace />;
+      case 'webhooks':
+        return <WebhookSetup />;
       case 'monitoring':
         return <HealthMonitor />;
       default:
