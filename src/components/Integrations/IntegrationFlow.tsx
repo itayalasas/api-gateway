@@ -25,6 +25,7 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
   const [loading, setLoading] = useState(true);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showGatewayConfig, setShowGatewayConfig] = useState(false);
   const [stats, setStats] = useState({
     totalRequests: 0,
     successRate: 0,
@@ -245,14 +246,25 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
       </div>
 
       <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div
+          className="flex items-center justify-between cursor-pointer"
+          onClick={() => setShowGatewayConfig(!showGatewayConfig)}
+        >
           <div>
             <h3 className="text-lg font-semibold text-white">Configuración del Gateway</h3>
             <p className="text-sm text-slate-400 mt-1">URL para configurar en tu sistema origen</p>
           </div>
+          <button className="text-slate-400 hover:text-white transition-colors">
+            {showGatewayConfig ? (
+              <ChevronDown className="w-6 h-6" />
+            ) : (
+              <ChevronRight className="w-6 h-6" />
+            )}
+          </button>
         </div>
 
-        <div className="bg-slate-900 rounded-lg p-4 space-y-4">
+        {showGatewayConfig && (
+          <div className="bg-slate-900 rounded-lg p-4 space-y-4 mt-4">
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-2">URL del Gateway</label>
             <div className="flex items-center gap-2">
@@ -361,6 +373,7 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
