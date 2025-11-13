@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Webhook, Database, Copy, CheckCircle, AlertCircle, ExternalLink, Info, RefreshCw, Send } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database as DB } from '../../lib/database.types';
 import { LogStream } from './LogStream';
+import { LogFiltersComponent, LogFilters } from './LogFilters';
 
 type Integration = DB['public']['Tables']['integrations']['Row'];
 type API = DB['public']['Tables']['apis']['Row'];
@@ -20,6 +21,13 @@ export function WebhookSetup() {
   const [logs, setLogs] = useState<RequestLog[]>([]);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [testPayload, setTestPayload] = useState('{\n  "test": true,\n  "message": "Hello from webhook test"\n}');
+  const [filters, setFilters] = useState<LogFilters>({
+    search: '',
+    status: '',
+    method: '',
+    dateFrom: '',
+    dateTo: ''
+  });
   const [sending, setSending] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -175,6 +183,46 @@ export function WebhookSetup() {
       loadLogs();
     }
   };
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const pathMatch = log.path?.toLowerCase().includes(searchLower);
+        const requestMatch = JSON.stringify(log.request_body).toLowerCase().includes(searchLower);
+        const responseMatch = JSON.stringify(log.response_body).toLowerCase().includes(searchLower);
+        if (!pathMatch && !requestMatch && !responseMatch) return false;
+      }
+
+      if (filters.status) {
+        if (filters.status === '2xx') {
+          if (!log.response_status || log.response_status < 200 || log.response_status >= 300) return false;
+        } else if (filters.status === '4xx') {
+          if (!log.response_status || log.response_status < 400 || log.response_status >= 500) return false;
+        } else if (filters.status === '5xx') {
+          if (!log.response_status || log.response_status < 500) return false;
+        } else {
+          if (log.response_status?.toString() !== filters.status) return false;
+        }
+      }
+
+      if (filters.method && log.method !== filters.method) return false;
+
+      if (filters.dateFrom) {
+        const logDate = new Date(log.created_at);
+        const fromDate = new Date(filters.dateFrom);
+        if (logDate < fromDate) return false;
+      }
+
+      if (filters.dateTo) {
+        const logDate = new Date(log.created_at);
+        const toDate = new Date(filters.dateTo);
+        if (logDate > toDate) return false;
+      }
+
+      return true;
+    });
+  }, [logs, filters]);
 
   const selectedInt = integrations.find(i => i.id === selectedIntegration);
   const sourceApi = apis.find(a => a.id === selectedInt?.source_api_id);
@@ -363,11 +411,19 @@ export function WebhookSetup() {
 
           <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
             <h3 className="text-lg font-semibold text-white mb-4">Logs en Tiempo Real</h3>
-            <LogStream
-              logs={logs}
-              onLogClick={(logId) => setExpandedLog(expandedLog === logId ? null : logId)}
-              expandedLog={expandedLog}
+            <LogFiltersComponent
+              filters={filters}
+              onFiltersChange={setFilters}
+              totalLogs={logs.length}
+              filteredLogs={filteredLogs.length}
             />
+            <div className="mt-4">
+              <LogStream
+                logs={filteredLogs}
+                onLogClick={(logId) => setExpandedLog(expandedLog === logId ? null : logId)}
+                expandedLog={expandedLog}
+              />
+            </div>
           </div>
 
           {selectedInt.integration_type === 'webhook' && selectedInt.allow_database_access && (

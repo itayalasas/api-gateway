@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Play, Clock, CheckCircle, XCircle, RefreshCw, ChevronDown, ChevronRight, Copy, ExternalLink } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, Play, Clock, CheckCircle, XCircle, RefreshCw, Copy, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
+import { LogStream } from '../Webhooks/LogStream';
+import { LogFiltersComponent, LogFilters } from '../Webhooks/LogFilters';
 
 type Integration = Database['public']['Tables']['integrations']['Row'];
 type API = Database['public']['Tables']['apis']['Row'];
@@ -28,6 +30,13 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
   const [copiedKey, setCopiedKey] = useState(false);
   const [showGatewayConfig, setShowGatewayConfig] = useState(false);
   const [regeneratingKey, setRegeneratingKey] = useState(false);
+  const [filters, setFilters] = useState<LogFilters>({
+    search: '',
+    status: '',
+    method: '',
+    dateFrom: '',
+    dateTo: ''
+  });
   const [stats, setStats] = useState({
     totalRequests: 0,
     successRate: 0,
@@ -121,22 +130,45 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
     }
   };
 
-  const getStatusColor = (status: number | null) => {
-    if (!status) return 'bg-slate-600 text-slate-300';
-    if (status >= 200 && status < 300) return 'bg-green-600 text-green-100';
-    if (status >= 300 && status < 400) return 'bg-blue-600 text-blue-100';
-    if (status >= 400 && status < 500) return 'bg-yellow-600 text-yellow-100';
-    return 'bg-red-600 text-red-100';
-  };
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const pathMatch = log.path?.toLowerCase().includes(searchLower);
+        const requestMatch = JSON.stringify(log.request_body).toLowerCase().includes(searchLower);
+        const responseMatch = JSON.stringify(log.response_body).toLowerCase().includes(searchLower);
+        if (!pathMatch && !requestMatch && !responseMatch) return false;
+      }
 
-  const formatJson = (data: any) => {
-    if (!data) return 'N/A';
-    try {
-      return JSON.stringify(data, null, 2);
-    } catch {
-      return String(data);
-    }
-  };
+      if (filters.status) {
+        if (filters.status === '2xx') {
+          if (!log.response_status || log.response_status < 200 || log.response_status >= 300) return false;
+        } else if (filters.status === '4xx') {
+          if (!log.response_status || log.response_status < 400 || log.response_status >= 500) return false;
+        } else if (filters.status === '5xx') {
+          if (!log.response_status || log.response_status < 500) return false;
+        } else {
+          if (log.response_status?.toString() !== filters.status) return false;
+        }
+      }
+
+      if (filters.method && log.method !== filters.method) return false;
+
+      if (filters.dateFrom) {
+        const logDate = new Date(log.created_at);
+        const fromDate = new Date(filters.dateFrom);
+        if (logDate < fromDate) return false;
+      }
+
+      if (filters.dateTo) {
+        const logDate = new Date(log.created_at);
+        const toDate = new Date(filters.dateTo);
+        if (logDate > toDate) return false;
+      }
+
+      return true;
+    });
+  }, [logs, filters]);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -433,93 +465,19 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
           <div className="flex items-center justify-center h-64">
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : logs.length === 0 ? (
-          <div className="text-center py-12">
-            <XCircle className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-400">No hay registros aún</p>
-            <p className="text-slate-500 text-sm mt-1">Los logs aparecerán aquí cuando se realicen solicitudes</p>
-          </div>
         ) : (
-          <div className="divide-y divide-slate-700 max-h-[600px] overflow-y-auto">
-            {logs.map((log) => (
-              <div key={log.id} className="p-4 hover:bg-slate-700/30 transition-colors">
-                <div
-                  className="flex items-start justify-between cursor-pointer"
-                  onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
-                >
-                  <div className="flex items-start gap-4 flex-1">
-                    <div className="flex items-center gap-2 min-w-[120px]">
-                      <span className={`text-xs font-mono px-2 py-1 rounded ${getStatusColor(log.response_status)}`}>
-                        {log.response_status || 'PENDING'}
-                      </span>
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-mono bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded">
-                          {log.method}
-                        </span>
-                        <span className="text-sm font-mono text-white">{log.path}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-slate-400">
-                        <span>{new Date(log.created_at).toLocaleString()}</span>
-                        {log.response_time_ms && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {log.response_time_ms}ms
-                          </span>
-                        )}
-                        <span className="text-slate-500">ID: {log.request_id.slice(0, 8)}...</span>
-                      </div>
-                      {log.error_message && (
-                        <div className="mt-2 bg-red-600/10 border border-red-600/30 rounded px-2 py-1">
-                          <p className="text-xs text-red-400">{log.error_message}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <button className="text-slate-400 hover:text-white">
-                      {expandedLog === log.id ? (
-                        <ChevronDown className="w-5 h-5" />
-                      ) : (
-                        <ChevronRight className="w-5 h-5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {expandedLog === log.id && (
-                  <div className="mt-4 space-y-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-300 mb-2">Request Headers</h4>
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <pre className="text-xs text-slate-300 font-mono overflow-x-auto">
-                          {formatJson(log.headers)}
-                        </pre>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-300 mb-2">Request Body</h4>
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <pre className="text-xs text-slate-300 font-mono overflow-x-auto">
-                          {formatJson(log.body)}
-                        </pre>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-300 mb-2">Response Body</h4>
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <pre className="text-xs text-slate-300 font-mono overflow-x-auto">
-                          {formatJson(log.response_body)}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="space-y-4">
+            <LogFiltersComponent
+              filters={filters}
+              onFiltersChange={setFilters}
+              totalLogs={logs.length}
+              filteredLogs={filteredLogs.length}
+            />
+            <LogStream
+              logs={filteredLogs}
+              onLogClick={(logId) => setExpandedLog(expandedLog === logId ? null : logId)}
+              expandedLog={expandedLog}
+            />
           </div>
         )}
       </div>
