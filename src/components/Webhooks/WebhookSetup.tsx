@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Webhook, Database, Copy, CheckCircle, AlertCircle, ExternalLink, Info, RefreshCw, Settings, Activity, Send, ChevronDown, ChevronRight } from 'lucide-react';
+import { Webhook, Database, Copy, CheckCircle, AlertCircle, ExternalLink, Info, RefreshCw, Send } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database as DB } from '../../lib/database.types';
+import { LogStream } from './LogStream';
 
 type Integration = DB['public']['Tables']['integrations']['Row'];
 type API = DB['public']['Tables']['apis']['Row'];
@@ -18,7 +19,6 @@ export function WebhookSetup() {
   const [regeneratingKey, setRegeneratingKey] = useState(false);
   const [logs, setLogs] = useState<RequestLog[]>([]);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
-  const [showLogs, setShowLogs] = useState(true);
   const [testPayload, setTestPayload] = useState('{\n  "test": true,\n  "message": "Hello from webhook test"\n}');
   const [sending, setSending] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -174,20 +174,6 @@ export function WebhookSetup() {
       setSending(false);
       loadLogs();
     }
-  };
-
-  const getStatusColor = (status: number | null) => {
-    if (!status) return 'text-slate-400';
-    if (status >= 200 && status < 300) return 'text-green-400';
-    if (status >= 400 && status < 500) return 'text-yellow-400';
-    return 'text-red-400';
-  };
-
-  const getStatusBadge = (status: number | null) => {
-    if (!status) return 'bg-slate-700';
-    if (status >= 200 && status < 300) return 'bg-green-600';
-    if (status >= 400 && status < 500) return 'bg-yellow-600';
-    return 'bg-red-600';
   };
 
   const selectedInt = integrations.find(i => i.id === selectedIntegration);
@@ -376,94 +362,12 @@ export function WebhookSetup() {
           </div>
 
           <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-            <div
-              className="flex items-center justify-between cursor-pointer mb-4"
-              onClick={() => setShowLogs(!showLogs)}
-            >
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                Logs de Peticiones
-                <span className="text-sm text-slate-400 font-normal">({logs.length})</span>
-              </h3>
-              <button className="text-slate-400 hover:text-white transition-colors">
-                {showLogs ? <ChevronDown className="w-6 h-6" /> : <ChevronRight className="w-6 h-6" />}
-              </button>
-            </div>
-
-            {showLogs && (
-              <div className="space-y-2">
-                {logs.length === 0 ? (
-                  <div className="bg-slate-900 rounded-lg p-8 text-center">
-                    <Activity className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                    <p className="text-slate-400">No hay peticiones registradas aún</p>
-                    <p className="text-sm text-slate-500 mt-1">Envía una petición de prueba para empezar</p>
-                  </div>
-                ) : (
-                  logs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden"
-                    >
-                      <div
-                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-800/50 transition-colors"
-                        onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
-                      >
-                        <div className="flex items-center gap-3 flex-1">
-                          <span className={`px-2 py-1 rounded text-xs font-mono ${getStatusBadge(log.response_status)}`}>
-                            {log.response_status || 'PENDING'}
-                          </span>
-                          <span className="text-white font-mono text-sm">{log.method}</span>
-                          <span className="text-slate-400 text-sm">
-                            {new Date(log.created_at).toLocaleString()}
-                          </span>
-                          {log.response_time_ms && (
-                            <span className="text-slate-500 text-xs">
-                              {log.response_time_ms}ms
-                            </span>
-                          )}
-                        </div>
-                        {expandedLog === log.id ? (
-                          <ChevronDown className="w-5 h-5 text-slate-400" />
-                        ) : (
-                          <ChevronRight className="w-5 h-5 text-slate-400" />
-                        )}
-                      </div>
-
-                      {expandedLog === log.id && (
-                        <div className="border-t border-slate-700 p-4 space-y-3">
-                          {log.request_body && (
-                            <div>
-                              <p className="text-xs font-semibold text-slate-400 mb-1">Request Body:</p>
-                              <pre className="bg-slate-950 p-3 rounded text-xs text-slate-300 overflow-x-auto">
-                                {JSON.stringify(log.request_body, null, 2)}
-                              </pre>
-                            </div>
-                          )}
-
-                          {log.response_body && (
-                            <div>
-                              <p className="text-xs font-semibold text-slate-400 mb-1">Response Body:</p>
-                              <pre className="bg-slate-950 p-3 rounded text-xs text-slate-300 overflow-x-auto">
-                                {JSON.stringify(log.response_body, null, 2)}
-                              </pre>
-                            </div>
-                          )}
-
-                          {log.error_message && (
-                            <div>
-                              <p className="text-xs font-semibold text-red-400 mb-1">Error:</p>
-                              <div className="bg-red-950/50 border border-red-900/50 p-3 rounded text-xs text-red-300">
-                                {log.error_message}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+            <h3 className="text-lg font-semibold text-white mb-4">Logs en Tiempo Real</h3>
+            <LogStream
+              logs={logs}
+              onLogClick={(logId) => setExpandedLog(expandedLog === logId ? null : logId)}
+              expandedLog={expandedLog}
+            />
           </div>
 
           {selectedInt.integration_type === 'webhook' && selectedInt.allow_database_access && (
