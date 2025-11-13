@@ -231,27 +231,58 @@ export function LogStream({ logs, onLogClick, expandedLog }: LogStreamProps) {
                       <span className="text-[10px] font-mono font-semibold text-slate-500">METADATA DE LA TRANSACCIÓN</span>
                       <div className="h-px flex-1 bg-slate-800"></div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-[10px]">
-                      <div className="bg-slate-950 border border-slate-800 rounded px-2 py-1.5">
-                        <span className="text-slate-600">Transaction ID:</span>
-                        <span className="text-slate-400 ml-2 font-mono">{log.request_id?.slice(0, 8) || 'N/A'}...</span>
+                    <div className="space-y-2">
+                      {/* Transaction ID - Full width */}
+                      <div className="bg-slate-950 border border-slate-800 rounded px-3 py-2">
+                        <div className="text-[10px] text-slate-600 mb-1">Transaction ID</div>
+                        <div className="text-[11px] text-slate-300 font-mono break-all">
+                          {log.request_id || 'N/A'}
+                        </div>
                       </div>
-                      <div className="bg-slate-950 border border-slate-800 rounded px-2 py-1.5">
-                        <span className="text-slate-600">Method:</span>
-                        <span className="text-slate-400 ml-2 font-mono">{log.method}</span>
+
+                      {/* Path/Endpoint - Full width */}
+                      <div className="bg-slate-950 border border-slate-800 rounded px-3 py-2">
+                        <div className="text-[10px] text-slate-600 mb-1">Endpoint</div>
+                        <div className="text-[11px] text-slate-300 font-mono break-all">
+                          {log.path || '/'}
+                        </div>
                       </div>
-                      <div className="bg-slate-950 border border-slate-800 rounded px-2 py-1.5">
-                        <span className="text-slate-600">Status:</span>
-                        <span className={`ml-2 font-mono ${getStatusColor(log.response_status)}`}>
-                          {log.response_status || 'N/A'}
-                        </span>
+
+                      {/* Grid de 2 columnas para info corta */}
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div className="bg-slate-950 border border-slate-800 rounded px-3 py-2">
+                          <div className="text-slate-600 mb-1">Method</div>
+                          <div className="text-slate-300 font-mono">{log.method}</div>
+                        </div>
+                        <div className="bg-slate-950 border border-slate-800 rounded px-3 py-2">
+                          <div className="text-slate-600 mb-1">Status</div>
+                          <div className={`font-mono ${getStatusColor(log.response_status)}`}>
+                            {log.response_status || 'N/A'}
+                          </div>
+                        </div>
+                        <div className="bg-slate-950 border border-slate-800 rounded px-3 py-2">
+                          <div className="text-slate-600 mb-1">Duración Total</div>
+                          <div className="text-slate-300 font-mono">
+                            {log.response_time_ms ? `${log.response_time_ms}ms` : 'N/A'}
+                          </div>
+                        </div>
+                        <div className="bg-slate-950 border border-slate-800 rounded px-3 py-2">
+                          <div className="text-slate-600 mb-1">Timestamp</div>
+                          <div className="text-slate-300 font-mono">
+                            {formatTimestamp(log.created_at)}
+                          </div>
+                        </div>
                       </div>
-                      <div className="bg-slate-950 border border-slate-800 rounded px-2 py-1.5">
-                        <span className="text-slate-600">Duración Total:</span>
-                        <span className="text-slate-400 ml-2 font-mono">
-                          {log.response_time_ms ? `${log.response_time_ms}ms` : 'N/A'}
-                        </span>
-                      </div>
+
+                      {/* Request Headers */}
+                      {log.headers && Object.keys(log.headers).length > 0 && (
+                        <div className="bg-slate-950 border border-slate-800 rounded px-3 py-2">
+                          <div className="text-[10px] text-slate-600 mb-2">Request Headers</div>
+                          <pre className="text-[10px] text-slate-400 font-mono overflow-x-auto leading-relaxed">
+{JSON.stringify(log.headers, null, 2)}
+                          </pre>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
