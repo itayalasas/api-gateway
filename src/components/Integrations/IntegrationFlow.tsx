@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { LogStream } from '../Webhooks/LogStream';
 import { LogFiltersComponent, LogFilters } from '../Webhooks/LogFilters';
+import { useGatewayUrl } from '../../hooks/useGatewayUrl';
 
 type Integration = Database['public']['Tables']['integrations']['Row'];
 type API = Database['public']['Tables']['apis']['Row'];
@@ -43,7 +44,8 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
     avgResponseTime: 0
   });
 
-  const gatewayUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/${integration.id}`;
+  const { getGatewayUrl } = useGatewayUrl();
+  const gatewayUrl = getGatewayUrl(integration.id);
 
   useEffect(() => {
     loadLogs();

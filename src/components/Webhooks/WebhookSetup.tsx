@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { Database as DB } from '../../lib/database.types';
 import { LogStream } from './LogStream';
 import { LogFiltersComponent, LogFilters } from './LogFilters';
+import { useGatewayUrl } from '../../hooks/useGatewayUrl';
 
 type Integration = DB['public']['Tables']['integrations']['Row'];
 type API = DB['public']['Tables']['apis']['Row'];
@@ -13,7 +14,6 @@ export function WebhookSetup() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [apis, setApis] = useState<API[]>([]);
   const [selectedIntegration, setSelectedIntegration] = useState<string>('');
-  const [webhookUrl, setWebhookUrl] = useState('');
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
@@ -30,24 +30,19 @@ export function WebhookSetup() {
   });
   const [sending, setSending] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [gatewayDomain, setGatewayDomain] = useState<string>('');
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const { getGatewayUrl } = useGatewayUrl();
 
   useEffect(() => {
     loadData();
-    loadGatewayConfig();
   }, []);
 
   useEffect(() => {
     if (selectedIntegration) {
-      const baseUrl = gatewayDomain || `${supabaseUrl}/functions/v1/api-gateway`;
-      const url = `https://${baseUrl}/${selectedIntegration}`;
-      setWebhookUrl(url);
       loadLogs();
       subscribeToLogs();
     }
-  }, [selectedIntegration, supabaseUrl, gatewayDomain]);
+  }, [selectedIntegration]);
 
   const loadData = async () => {
     const { data: integrationsData } = await supabase
@@ -63,17 +58,6 @@ export function WebhookSetup() {
     if (apisData) setApis(apisData);
   };
 
-  const loadGatewayConfig = async () => {
-    const { data } = await supabase
-      .from('system_config')
-      .select('config_value')
-      .eq('config_key', 'gateway_domain')
-      .maybeSingle();
-
-    if (data?.config_value) {
-      setGatewayDomain(data.config_value);
-    }
-  };
 
   const loadLogs = async () => {
     if (!selectedIntegration) return;
@@ -151,7 +135,7 @@ export function WebhookSetup() {
   };
 
   const sendTestRequest = async () => {
-    if (!selectedInt?.api_key || !webhookUrl) return;
+    if (!selectedInt?.api_key || !selectedIntegration) return;
 
     setSending(true);
     setTestResult(null);
@@ -166,6 +150,7 @@ export function WebhookSetup() {
         return;
       }
 
+      const webhookUrl = getGatewayUrl(selectedIntegration);
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
@@ -242,6 +227,7 @@ export function WebhookSetup() {
   const selectedInt = integrations.find(i => i.id === selectedIntegration);
   const sourceApi = apis.find(a => a.id === selectedInt?.source_api_id);
   const targetApi = apis.find(a => a.id === selectedInt?.target_api_id);
+  const webhookUrl = selectedIntegration ? getGatewayUrl(selectedIntegration) : '';
 
   return (
     <div className="space-y-6">
