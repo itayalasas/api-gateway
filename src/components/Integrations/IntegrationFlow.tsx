@@ -26,6 +26,7 @@ interface IntegrationFlowProps {
 export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
   const [logs, setLogs] = useState<RequestLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
@@ -72,7 +73,9 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
   }, [integration.id]);
 
   const loadLogs = async () => {
-    setLoading(true);
+    if (initialLoad) {
+      setLoading(true);
+    }
 
     const { data, error } = await supabase
       .from('request_logs')
@@ -86,6 +89,9 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
       calculateStats(data);
     }
 
+    if (initialLoad) {
+      setInitialLoad(false);
+    }
     setLoading(false);
   };
 
@@ -464,7 +470,7 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
           <p className="text-sm text-slate-400 mt-1">Monitoreo de requests y responses</p>
         </div>
 
-        {loading ? (
+        {initialLoad && loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
