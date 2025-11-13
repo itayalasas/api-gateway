@@ -30,14 +30,14 @@ export function useGatewayUrl() {
 
   const getGatewayUrl = (integrationId: string): string => {
     if (gatewayDomain) {
-      return `https://${gatewayDomain}/v1/api-gateway/${integrationId}`;
+      return `https://${gatewayDomain}/functions/v1/api-gateway/${integrationId}`;
     }
     return `${supabaseUrl}/functions/v1/api-gateway/${integrationId}`;
   };
 
   const getBaseGatewayUrl = (): string => {
     if (gatewayDomain) {
-      return `https://${gatewayDomain}/v1/api-gateway`;
+      return `https://${gatewayDomain}/functions/v1/api-gateway`;
     }
     return `${supabaseUrl}/functions/v1/api-gateway`;
   };
