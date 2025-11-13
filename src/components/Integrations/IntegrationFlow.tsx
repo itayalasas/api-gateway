@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Play, Clock, CheckCircle, XCircle, RefreshCw, Copy, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Play, Clock, CheckCircle, XCircle, RefreshCw, Copy, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { LogStream } from '../Webhooks/LogStream';
