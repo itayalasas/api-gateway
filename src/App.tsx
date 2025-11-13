@@ -6,6 +6,7 @@ import { Dashboard } from './components/Dashboard/Dashboard';
 import { APIList } from './components/APIs/APIList';
 import { IntegrationWorkspace } from './components/Integrations/IntegrationWorkspace';
 import { HealthMonitor } from './components/Monitoring/HealthMonitor';
+import { LogsViewer } from './components/Logs/LogsViewer';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -32,7 +33,7 @@ function AppContent() {
       case 'integrations':
         return <IntegrationWorkspace />;
       case 'logs':
-        return <LogConsole />;
+        return <LogsViewer />;
       case 'monitoring':
         return <HealthMonitor />;
       default:
