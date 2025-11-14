@@ -344,11 +344,21 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-      const targetResponse = await fetch(targetUrl, {
+      // GET, HEAD, and DELETE methods should not have a request body
+      const methodsWithoutBody = ['GET', 'HEAD', 'DELETE'];
+      const shouldIncludeBody = !methodsWithoutBody.includes(targetEndpoint.method.toUpperCase());
+
+      const fetchOptions: RequestInit = {
         method: targetEndpoint.method,
         headers: targetHeaders,
-        body: JSON.stringify(dataToSend),
-      });
+      };
+
+      // Only include body for POST, PUT, PATCH, etc.
+      if (shouldIncludeBody && dataToSend && Object.keys(dataToSend).length > 0) {
+        fetchOptions.body = JSON.stringify(dataToSend);
+      }
+
+      const targetResponse = await fetch(targetUrl, fetchOptions);
 
       const responseText = await targetResponse.text();
       let responseBody;

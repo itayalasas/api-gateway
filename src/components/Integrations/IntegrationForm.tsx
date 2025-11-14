@@ -410,32 +410,42 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                     </label>
                     {targetEndpoints.length > 0 ? (
                       <div className="space-y-2">
-                        {targetEndpoints.map(endpoint => (
-                          <button
-                            key={endpoint.id}
-                            type="button"
-                            onClick={() => setTargetEndpointId(endpoint.id)}
-                            className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
-                              targetEndpointId === endpoint.id
-                                ? 'border-blue-600 bg-blue-600/10'
-                                : 'border-slate-600 hover:border-slate-500'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className={`px-2 py-1 rounded text-xs font-mono ${
+                        {targetEndpoints.map(endpoint => {
+                          const methodsWithoutBody = ['GET', 'HEAD', 'DELETE'];
+                          const hasBody = !methodsWithoutBody.includes(endpoint.method.toUpperCase());
+
+                          return (
+                            <button
+                              key={endpoint.id}
+                              type="button"
+                              onClick={() => setTargetEndpointId(endpoint.id)}
+                              className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
                                 targetEndpointId === endpoint.id
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-slate-700 text-slate-300'
-                              }`}>
-                                {endpoint.method}
-                              </span>
-                              <span className="font-mono text-white">{endpoint.path}</span>
-                            </div>
-                            {endpoint.description && (
-                              <p className="text-sm text-slate-400 mt-2">{endpoint.description}</p>
-                            )}
-                          </button>
-                        ))}
+                                  ? 'border-blue-600 bg-blue-600/10'
+                                  : 'border-slate-600 hover:border-slate-500'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className={`px-2 py-1 rounded text-xs font-mono ${
+                                  targetEndpointId === endpoint.id
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-slate-700 text-slate-300'
+                                }`}>
+                                  {endpoint.method}
+                                </span>
+                                <span className="font-mono text-white">{endpoint.path}</span>
+                                {!hasBody && (
+                                  <span className="px-2 py-0.5 bg-amber-600/20 border border-amber-600/40 text-amber-300 rounded text-xs">
+                                    Sin body
+                                  </span>
+                                )}
+                              </div>
+                              {endpoint.description && (
+                                <p className="text-sm text-slate-400 mt-2">{endpoint.description}</p>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="bg-yellow-600/10 border border-yellow-600/30 rounded-lg p-4">
@@ -449,6 +459,27 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
               </div>
             </div>
           </div>
+
+          {selectedTargetEndpoint && (() => {
+            const methodsWithoutBody = ['GET', 'HEAD', 'DELETE'];
+            const hasBody = !methodsWithoutBody.includes(selectedTargetEndpoint.method.toUpperCase());
+
+            if (!hasBody) {
+              return (
+                <div className="bg-amber-600/10 border border-amber-600/30 rounded-xl p-4">
+                  <h4 className="text-sm font-semibold text-amber-400 mb-2 flex items-center gap-2">
+                    <span>⚠️</span>
+                    Método {selectedTargetEndpoint.method} no soporta body
+                  </h4>
+                  <p className="text-sm text-amber-300">
+                    Los métodos GET, HEAD y DELETE no pueden incluir un body en la petición según el estándar HTTP.
+                    Solo se enviarán los headers, query parameters y path parameters configurados.
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           {targetApiId && (
             <div className="bg-slate-900 rounded-xl p-6">
