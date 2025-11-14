@@ -291,7 +291,22 @@ Deno.serve(async (req: Request) => {
       const customHeaders = integration.custom_headers as Record<string, string>;
       for (const [key, value] of Object.entries(customHeaders)) {
         if (key && value) {
-          targetHeaders[key] = value;
+          let finalValue = value;
+
+          // Support ${header.name} template syntax
+          const headerRegex = /\$\{header\.(\w+)\}/g;
+          finalValue = finalValue.replace(headerRegex, (_, headerName) => {
+            return req.headers.get(headerName) || '';
+          });
+
+          // Support ${body.path} template syntax
+          const bodyRegex = /\$\{body\.([^}]+)\}/g;
+          finalValue = finalValue.replace(bodyRegex, (_, path) => {
+            const bodyValue = getNestedValue(parsedBody, path);
+            return bodyValue !== undefined ? String(bodyValue) : '';
+          });
+
+          targetHeaders[key] = finalValue;
         }
       }
     }

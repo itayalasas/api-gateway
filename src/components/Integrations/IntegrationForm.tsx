@@ -393,7 +393,8 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                 Headers Personalizados (Opcional)
               </h3>
               <p className="text-sm text-slate-400 mb-4">
-                Agrega headers personalizados que se enviarán con cada solicitud a la API de destino
+                Agrega headers personalizados que se enviarán con cada solicitud a la API de destino.
+                Soporta templates: <code className="text-purple-400">${'${header.nombre}'}</code> o <code className="text-purple-400">${'${body.campo}'}</code>
               </p>
 
               <div className="space-y-3">
@@ -419,7 +420,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                         setCustomHeaders(newHeaders);
                       }}
                       className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      placeholder="Valor del Header"
+                      placeholder="Valor (ej: ${header.authorization}, Bearer ${body.token})"
                     />
                     {customHeaders.length > 1 && (
                       <button
@@ -446,9 +447,14 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                 </button>
 
                 <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-3 mt-3">
-                  <p className="text-xs text-blue-300">
-                    <strong>Ejemplos comunes:</strong> Authorization, X-API-Key, Content-Type, Accept, User-Agent, X-Custom-Header
+                  <p className="text-xs text-blue-300 mb-2">
+                    <strong>Ejemplos comunes:</strong>
                   </p>
+                  <ul className="text-xs text-blue-300 space-y-1">
+                    <li>• <code>Authorization</code> → <code>${'${header.authorization}'}</code> (toma el header entrante)</li>
+                    <li>• <code>X-API-Key</code> → <code>sk_live_12345</code> (valor fijo)</li>
+                    <li>• <code>Content-Type</code> → <code>application/json</code></li>
+                  </ul>
                 </div>
               </div>
             </div>
