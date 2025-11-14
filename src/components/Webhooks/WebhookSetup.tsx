@@ -40,7 +40,11 @@ export function WebhookSetup() {
   useEffect(() => {
     if (selectedIntegration) {
       loadLogs();
-      subscribeToLogs();
+      const cleanup = subscribeToLogs();
+
+      return () => {
+        if (cleanup) cleanup();
+      };
     }
   }, [selectedIntegration]);
 
@@ -80,13 +84,22 @@ export function WebhookSetup() {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'request_logs',
           filter: `integration_id=eq.${selectedIntegration}`
         },
-        () => {
-          loadLogs();
+        (payload) => {
+          // Add the new log directly to avoid reloading all logs
+          const newLog = payload.new as RequestLog;
+          setLogs((prevLogs) => {
+            // Prevent duplicates
+            if (prevLogs.some(log => log.id === newLog.id)) {
+              return prevLogs;
+            }
+            // Add new log at the beginning and keep only last 20
+            return [newLog, ...prevLogs].slice(0, 20);
+          });
         }
       )
       .subscribe();
@@ -180,7 +193,7 @@ export function WebhookSetup() {
       });
     } finally {
       setSending(false);
-      loadLogs();
+      // No need to call loadLogs() - realtime subscription will handle it
     }
   };
 
