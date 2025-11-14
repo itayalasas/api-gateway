@@ -158,41 +158,39 @@ export function IntegrationWorkspace() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2.5">
         {integrations.map((integration) => (
           <div
             key={integration.id}
             className="group bg-slate-800/50 backdrop-blur-sm rounded-lg border border-slate-700/50 hover:border-blue-500/50 transition-all duration-200 overflow-hidden cursor-pointer"
             onClick={() => setSelectedIntegration(integration)}
           >
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    integration.is_active ? 'bg-green-500/20 ring-1 ring-green-500/30' : 'bg-slate-700/50'
+            <div className="p-3">
+              <div className="flex items-center gap-2.5 mb-2.5">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  integration.is_active ? 'bg-green-500/20 ring-1 ring-green-500/30' : 'bg-slate-700/50'
+                }`}>
+                  {integration.is_active ? (
+                    <Play className="w-3.5 h-3.5 text-green-400" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-white text-sm truncate leading-tight">{integration.name}</h3>
+                  <span className={`inline-flex items-center text-xs px-1.5 py-0.5 rounded mt-0.5 ${
+                    integration.is_active
+                      ? 'bg-green-500/10 text-green-400'
+                      : 'bg-slate-700/50 text-slate-400'
                   }`}>
-                    {integration.is_active ? (
-                      <Play className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <Square className="w-4 h-4 text-slate-400" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-white text-sm truncate">{integration.name}</h3>
-                    <span className={`inline-flex items-center text-xs px-1.5 py-0.5 rounded mt-1 ${
-                      integration.is_active
-                        ? 'bg-green-500/10 text-green-400'
-                        : 'bg-slate-700/50 text-slate-400'
-                    }`}>
-                      {integration.is_active ? 'Activa' : 'Inactiva'}
-                    </span>
-                  </div>
+                    {integration.is_active ? 'Activa' : 'Inactiva'}
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-2.5">
-                <div className="bg-slate-900/50 rounded-lg p-2.5">
-                  <div className="flex items-center justify-between mb-1.5">
+              <div className="space-y-2">
+                <div className="bg-slate-900/50 rounded-md p-2">
+                  <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium text-slate-400">Origen</span>
                     {integration.source_endpoints && integration.source_endpoints.length > 1 && (
                       <span className="text-xs bg-slate-700/50 text-slate-300 px-1.5 py-0.5 rounded">
@@ -200,17 +198,17 @@ export function IntegrationWorkspace() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm font-medium text-white truncate">{integration.source_api.name}</p>
+                  <p className="text-sm font-medium text-white truncate leading-tight">{integration.source_api.name}</p>
                   {integration.source_endpoints && integration.source_endpoints.length > 0 && (
-                    <div className="mt-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-mono bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded flex-shrink-0">
+                    <div className="mt-1">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-mono bg-green-500/20 text-green-400 px-1 py-0.5 rounded flex-shrink-0">
                           {integration.source_endpoints[0].method}
                         </span>
                         <span className="text-xs font-mono text-slate-300 truncate">{integration.source_endpoints[0].path}</span>
                       </div>
                       {integration.source_endpoints.length > 1 && (
-                        <span className="text-xs text-slate-500 mt-1 block">
+                        <span className="text-xs text-slate-500 mt-0.5 block">
                           +{integration.source_endpoints.length - 1} más
                         </span>
                       )}
@@ -218,16 +216,16 @@ export function IntegrationWorkspace() {
                   )}
                 </div>
 
-                <div className="flex justify-center">
-                  <ArrowRight className="w-4 h-4 text-blue-400" />
+                <div className="flex justify-center py-0.5">
+                  <ArrowRight className="w-3.5 h-3.5 text-blue-400" />
                 </div>
 
-                <div className="bg-slate-900/50 rounded-lg p-2.5">
-                  <span className="text-xs font-medium text-slate-400 block mb-1.5">Destino</span>
-                  <p className="text-sm font-medium text-white truncate">{integration.target_api.name}</p>
+                <div className="bg-slate-900/50 rounded-md p-2">
+                  <span className="text-xs font-medium text-slate-400 block mb-1">Destino</span>
+                  <p className="text-sm font-medium text-white truncate leading-tight">{integration.target_api.name}</p>
                   {integration.target_endpoint && (
-                    <div className="flex items-center gap-1.5 mt-1.5">
-                      <span className="text-xs font-mono bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded flex-shrink-0">
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-xs font-mono bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded flex-shrink-0">
                         {integration.target_endpoint.method}
                       </span>
                       <span className="text-xs font-mono text-slate-300 truncate">{integration.target_endpoint.path}</span>
@@ -237,13 +235,13 @@ export function IntegrationWorkspace() {
               </div>
             </div>
 
-            <div className="border-t border-slate-700/50 bg-slate-800/30 p-2 flex gap-1.5">
+            <div className="border-t border-slate-700/50 bg-slate-800/30 p-1.5 flex gap-1">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleToggleActive(integration);
                 }}
-                className={`flex-1 px-2.5 py-1.5 rounded text-xs font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                className={`flex-1 px-2 py-1.5 rounded text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
                   integration.is_active
                     ? 'bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400'
                     : 'bg-green-500/10 hover:bg-green-500/20 text-green-400'
@@ -251,12 +249,12 @@ export function IntegrationWorkspace() {
               >
                 {integration.is_active ? (
                   <>
-                    <Square className="w-3.5 h-3.5" />
+                    <Square className="w-3 h-3" />
                     Desactivar
                   </>
                 ) : (
                   <>
-                    <Play className="w-3.5 h-3.5" />
+                    <Play className="w-3 h-3" />
                     Activar
                   </>
                 )}
@@ -266,7 +264,7 @@ export function IntegrationWorkspace() {
                   e.stopPropagation();
                   handleEdit(integration);
                 }}
-                className="px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 text-xs font-medium rounded transition-colors"
+                className="px-2.5 py-1.5 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 text-xs font-medium rounded transition-colors"
               >
                 Editar
               </button>
@@ -275,7 +273,7 @@ export function IntegrationWorkspace() {
                   e.stopPropagation();
                   handleDelete(integration.id);
                 }}
-                className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium rounded transition-colors"
+                className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium rounded transition-colors"
               >
                 Eliminar
               </button>
