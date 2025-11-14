@@ -169,7 +169,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
 
   useEffect(() => {
     if (selectedTargetEndpoint) {
-      const colonParamRegex = /:(\w+)/g;
+      const colonParamRegex = /\/:(\w+)/g;
       const dollarParamRegex = /\$\{(\w+)\}/g;
 
       const colonMatches = [...selectedTargetEndpoint.path.matchAll(colonParamRegex)];
