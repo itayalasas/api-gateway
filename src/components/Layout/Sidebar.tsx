@@ -1,4 +1,4 @@
-import { Home, Settings, Link2, Activity, Webhook, LogOut, Sliders, Book } from 'lucide-react';
+import { Home, Settings, Link2, Activity, Webhook, LogOut, Sliders, Book, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
@@ -13,6 +13,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
     { id: 'dashboard', icon: Home, label: 'Panel' },
     { id: 'apis', icon: Settings, label: 'APIs' },
     { id: 'integrations', icon: Link2, label: 'Integraciones' },
+    { id: 'public-apis', icon: Globe, label: 'APIs Públicas' },
     { id: 'webhooks', icon: Webhook, label: 'Webhooks' },
     { id: 'monitoring', icon: Activity, label: 'Monitoreo' },
     { id: 'documentation', icon: Book, label: 'Documentación' },
