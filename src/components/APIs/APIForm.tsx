@@ -30,6 +30,7 @@ export function APIForm({ api, onClose }: APIFormProps) {
   const [baseUrl, setBaseUrl] = useState('');
   const [authType, setAuthType] = useState<AuthType>('none');
   const [authConfig, setAuthConfig] = useState<Record<string, string>>({});
+  const [customHeaders, setCustomHeaders] = useState<Array<{ key: string; value: string }>>([{ key: '', value: '' }]);
   const [endpoints, setEndpoints] = useState<EndpointForm[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -55,7 +56,16 @@ export function APIForm({ api, onClose }: APIFormProps) {
 
     if (data) {
       setAuthType(data.auth_type);
-      setAuthConfig(data.auth_config as Record<string, string> || {});
+      const config = data.auth_config as Record<string, any> || {};
+      setAuthConfig(config);
+
+      if (data.auth_type === 'custom' && config.headers && typeof config.headers === 'object') {
+        const headers = Object.entries(config.headers).map(([key, value]) => ({
+          key,
+          value: String(value)
+        }));
+        setCustomHeaders(headers.length > 0 ? headers : [{ key: '', value: '' }]);
+      }
     }
   };
 
@@ -145,10 +155,18 @@ export function APIForm({ api, onClose }: APIFormProps) {
         .eq('api_id', apiId)
         .maybeSingle();
 
+      let finalAuthConfig = authConfig;
+      if (authType === 'custom') {
+        const headersObject = customHeaders
+          .filter(h => h.key.trim() !== '')
+          .reduce((acc, h) => ({ ...acc, [h.key]: h.value }), {});
+        finalAuthConfig = { headers: headersObject };
+      }
+
       const securityData = {
         api_id: apiId,
         auth_type: authType,
-        auth_config: authConfig
+        auth_config: finalAuthConfig
       };
 
       if (existingSecurity) {
@@ -271,6 +289,65 @@ export function APIForm({ api, onClose }: APIFormProps) {
               />
             </div>
           </>
+        );
+      case 'custom':
+        return (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-400">
+              Agrega los headers personalizados que se enviarán con cada solicitud a esta API
+            </p>
+            {customHeaders.map((header, index) => (
+              <div key={index} className="flex gap-2">
+                <input
+                  type="text"
+                  value={header.key}
+                  onChange={(e) => {
+                    const newHeaders = [...customHeaders];
+                    newHeaders[index].key = e.target.value;
+                    setCustomHeaders(newHeaders);
+                  }}
+                  className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Nombre del Header (ej: Accept, User-Agent)"
+                />
+                <input
+                  type="text"
+                  value={header.value}
+                  onChange={(e) => {
+                    const newHeaders = [...customHeaders];
+                    newHeaders[index].value = e.target.value;
+                    setCustomHeaders(newHeaders);
+                  }}
+                  className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Valor del Header"
+                />
+                {customHeaders.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newHeaders = customHeaders.filter((_, i) => i !== index);
+                      setCustomHeaders(newHeaders);
+                    }}
+                    className="p-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/40 text-red-400 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setCustomHeaders([...customHeaders, { key: '', value: '' }])}
+              className="w-full py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 rounded-lg flex items-center justify-center gap-2 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Agregar Header
+            </button>
+            <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-3">
+              <p className="text-xs text-blue-300">
+                <strong>Ejemplos:</strong> Accept: application/json, User-Agent: MiApp/1.0, X-Custom-Header: valor
+              </p>
+            </div>
+          </div>
         );
       default:
         return null;

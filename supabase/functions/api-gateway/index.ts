@@ -274,6 +274,15 @@ Deno.serve(async (req: Request) => {
             targetHeaders['Authorization'] = `Basic ${credentials}`;
           }
           break;
+        case 'custom':
+          if (authConfig.headers && typeof authConfig.headers === 'object') {
+            for (const [key, value] of Object.entries(authConfig.headers)) {
+              if (key && value) {
+                targetHeaders[key] = String(value);
+              }
+            }
+          }
+          break;
       }
     }
 
