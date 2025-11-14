@@ -85,12 +85,18 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
       setLoading(true);
     }
 
+    // Obtener inicio del día actual en UTC
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayISO = startOfToday.toISOString();
+
     const { data, error } = await supabase
       .from('request_logs')
       .select('*')
       .eq('integration_id', integration.id)
+      .gte('created_at', todayISO)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(100);
 
     if (!error && data) {
       setLogs(data);
