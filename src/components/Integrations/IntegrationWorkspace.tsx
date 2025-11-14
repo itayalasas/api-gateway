@@ -158,111 +158,105 @@ export function IntegrationWorkspace() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {integrations.map((integration) => (
           <div
             key={integration.id}
-            className="bg-slate-800 rounded-xl border border-slate-700 p-6 hover:border-slate-600 transition-all cursor-pointer"
+            className="group bg-slate-800/50 backdrop-blur-sm rounded-lg border border-slate-700/50 hover:border-blue-500/50 transition-all duration-200 overflow-hidden cursor-pointer"
             onClick={() => setSelectedIntegration(integration)}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  integration.is_active ? 'bg-green-600/20' : 'bg-slate-700'
-                }`}>
-                  {integration.is_active ? (
-                    <Play className="w-5 h-5 text-green-400" />
-                  ) : (
-                    <Square className="w-5 h-5 text-slate-400" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white text-lg">{integration.name}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-xs px-2 py-0.5 rounded ${
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    integration.is_active ? 'bg-green-500/20 ring-1 ring-green-500/30' : 'bg-slate-700/50'
+                  }`}>
+                    {integration.is_active ? (
+                      <Play className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <Square className="w-4 h-4 text-slate-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-white text-sm truncate">{integration.name}</h3>
+                    <span className={`inline-flex items-center text-xs px-1.5 py-0.5 rounded mt-1 ${
                       integration.is_active
-                        ? 'bg-green-600/20 text-green-400'
-                        : 'bg-slate-700 text-slate-400'
+                        ? 'bg-green-500/10 text-green-400'
+                        : 'bg-slate-700/50 text-slate-400'
                     }`}>
                       {integration.is_active ? 'Activa' : 'Inactiva'}
                     </span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex-1 bg-slate-900 rounded-lg p-4">
-                <p className="text-xs text-slate-500 mb-1">Origen</p>
-                <p className="text-sm font-medium text-white">{integration.source_api.name}</p>
-                <p className="text-xs text-slate-400 mt-1">{integration.source_api.application_owner}</p>
-                {integration.source_endpoints && integration.source_endpoints.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {integration.source_endpoints.length === 1 ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono bg-green-600/20 text-green-400 px-2 py-0.5 rounded">
-                          {integration.source_endpoints[0].method}
-                        </span>
-                        <span className="text-xs font-mono text-slate-300">{integration.source_endpoints[0].path}</span>
-                      </div>
-                    ) : (
-                      <>
-                        {integration.source_endpoints.slice(0, 2).map((endpoint, idx) => (
-                          <div key={endpoint.id} className="flex items-center gap-2">
-                            <span className="text-xs font-mono bg-green-600/20 text-green-400 px-2 py-0.5 rounded">
-                              {endpoint.method}
-                            </span>
-                            <span className="text-xs font-mono text-slate-300">{endpoint.path}</span>
-                          </div>
-                        ))}
-                        {integration.source_endpoints.length > 2 && (
-                          <div className="text-xs text-slate-500 font-medium">
-                            +{integration.source_endpoints.length - 2} más
-                          </div>
-                        )}
-                      </>
+              <div className="space-y-2.5">
+                <div className="bg-slate-900/50 rounded-lg p-2.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-medium text-slate-400">Origen</span>
+                    {integration.source_endpoints && integration.source_endpoints.length > 1 && (
+                      <span className="text-xs bg-slate-700/50 text-slate-300 px-1.5 py-0.5 rounded">
+                        {integration.source_endpoints.length} endpoints
+                      </span>
                     )}
                   </div>
-                )}
-              </div>
+                  <p className="text-sm font-medium text-white truncate">{integration.source_api.name}</p>
+                  {integration.source_endpoints && integration.source_endpoints.length > 0 && (
+                    <div className="mt-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-mono bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded flex-shrink-0">
+                          {integration.source_endpoints[0].method}
+                        </span>
+                        <span className="text-xs font-mono text-slate-300 truncate">{integration.source_endpoints[0].path}</span>
+                      </div>
+                      {integration.source_endpoints.length > 1 && (
+                        <span className="text-xs text-slate-500 mt-1 block">
+                          +{integration.source_endpoints.length - 1} más
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-              <ArrowRight className="w-6 h-6 text-blue-400 flex-shrink-0" />
+                <div className="flex justify-center">
+                  <ArrowRight className="w-4 h-4 text-blue-400" />
+                </div>
 
-              <div className="flex-1 bg-slate-900 rounded-lg p-4">
-                <p className="text-xs text-slate-500 mb-1">Destino</p>
-                <p className="text-sm font-medium text-white">{integration.target_api.name}</p>
-                <p className="text-xs text-slate-400 mt-1">{integration.target_api.application_owner}</p>
-                {integration.target_endpoint && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs font-mono bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded">
-                      {integration.target_endpoint.method}
-                    </span>
-                    <span className="text-xs font-mono text-slate-300">{integration.target_endpoint.path}</span>
-                  </div>
-                )}
+                <div className="bg-slate-900/50 rounded-lg p-2.5">
+                  <span className="text-xs font-medium text-slate-400 block mb-1.5">Destino</span>
+                  <p className="text-sm font-medium text-white truncate">{integration.target_api.name}</p>
+                  {integration.target_endpoint && (
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <span className="text-xs font-mono bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded flex-shrink-0">
+                        {integration.target_endpoint.method}
+                      </span>
+                      <span className="text-xs font-mono text-slate-300 truncate">{integration.target_endpoint.path}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-2 mt-4">
+            <div className="border-t border-slate-700/50 bg-slate-800/30 p-2 flex gap-1.5">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleToggleActive(integration);
                 }}
-                className={`flex-1 px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                className={`flex-1 px-2.5 py-1.5 rounded text-xs font-medium flex items-center justify-center gap-1.5 transition-colors ${
                   integration.is_active
-                    ? 'bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400'
-                    : 'bg-green-600/20 hover:bg-green-600/30 text-green-400'
+                    ? 'bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400'
+                    : 'bg-green-500/10 hover:bg-green-500/20 text-green-400'
                 }`}
               >
                 {integration.is_active ? (
                   <>
-                    <Square className="w-4 h-4" />
+                    <Square className="w-3.5 h-3.5" />
                     Desactivar
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4" />
+                    <Play className="w-3.5 h-3.5" />
                     Activar
                   </>
                 )}
@@ -272,7 +266,7 @@ export function IntegrationWorkspace() {
                   e.stopPropagation();
                   handleEdit(integration);
                 }}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                className="px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 text-xs font-medium rounded transition-colors"
               >
                 Editar
               </button>
@@ -281,7 +275,7 @@ export function IntegrationWorkspace() {
                   e.stopPropagation();
                   handleDelete(integration.id);
                 }}
-                className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors"
+                className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium rounded transition-colors"
               >
                 Eliminar
               </button>
@@ -291,16 +285,16 @@ export function IntegrationWorkspace() {
       </div>
 
       {integrations.length === 0 && apis.length >= 2 && (
-        <div className="text-center py-12 bg-slate-800 rounded-xl border border-slate-700">
-          <ArrowRight className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-white mb-2">No integrations yet</h3>
-          <p className="text-slate-400 mb-4">Create your first integration to connect APIs</p>
+        <div className="text-center py-16 bg-slate-800/30 rounded-xl border border-slate-700/50 border-dashed">
+          <ArrowRight className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white mb-2">No hay integraciones</h3>
+          <p className="text-slate-400 mb-6">Crea tu primera integración para conectar APIs</p>
           <button
             onClick={() => setShowForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl inline-flex items-center gap-2 transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg inline-flex items-center gap-2 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            New Integration
+            Nueva Integración
           </button>
         </div>
       )}
