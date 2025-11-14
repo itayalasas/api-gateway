@@ -10,7 +10,7 @@ import { HealthMonitor } from './components/Monitoring/HealthMonitor';
 import { WebhookSetup } from './components/Webhooks/WebhookSetup';
 import { SystemSettings } from './components/Settings/SystemSettings';
 import Documentation from './components/Documentation/Documentation';
-
+//Es una prueba
 function AppContent() {
   const { user, externalUser, loading } = useAuth();
   const [activeView, setActiveView] = useState('dashboard');
