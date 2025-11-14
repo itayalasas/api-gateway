@@ -105,7 +105,7 @@ export function SystemSettings() {
                   <li>El dominio debe apuntar a tu edge function de Supabase</li>
                   <li>Configura un CNAME en tu DNS apuntando a Supabase</li>
                   <li>Ejemplo: <code className="text-blue-400">api.flowbridge.site</code> (sin https://)</li>
-                  <li>Los webhooks usarán: <code className="text-blue-400">https://{'{'}dominio{'}'}/{'{'}integration-id{'}'}</code></li>
+                  <li>Los webhooks usarán: <code className="text-blue-400">https://{'{'}dominio{'}'}/functions/v1/api-gateway/{'{'}integration-id{'}'}</code></li>
                 </ul>
               </div>
             </div>
@@ -153,7 +153,7 @@ export function SystemSettings() {
         <div className="bg-slate-900 rounded-lg p-4">
           <p className="text-xs text-slate-400 mb-2">Ejemplo de URL generada:</p>
           <code className="block bg-slate-950 px-4 py-3 rounded text-blue-400 text-sm font-mono break-all">
-            https://{gatewayDomain || 'tu-dominio.com'}/{'<integration-id>'}
+            https://{gatewayDomain || 'tu-dominio.com'}/functions/v1/api-gateway/{'<integration-id>'}
           </code>
         </div>
       </div>
