@@ -23,7 +23,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
   const [name, setName] = useState('');
   const [sourceApiId, setSourceApiId] = useState('');
   const [targetApiId, setTargetApiId] = useState('');
-  const [sourceEndpointId, setSourceEndpointId] = useState('');
+  const [sourceEndpointIds, setSourceEndpointIds] = useState<string[]>([]);
   const [targetEndpointId, setTargetEndpointId] = useState('');
   const [apisWithEndpoints, setApisWithEndpoints] = useState<APIWithEndpoints[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,7 +41,11 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
       setName(integration.name);
       setSourceApiId(integration.source_api_id);
       setTargetApiId(integration.target_api_id);
-      if (integration.source_endpoint_id) setSourceEndpointId(integration.source_endpoint_id);
+      if (integration.source_endpoint_id) {
+        setSourceEndpointIds([integration.source_endpoint_id]);
+        // Load additional source endpoints from junction table
+        loadIntegrationSourceEndpoints(integration.id);
+      }
       if (integration.target_endpoint_id) setTargetEndpointId(integration.target_endpoint_id);
 
       if (integration.custom_headers && typeof integration.custom_headers === 'object') {
@@ -76,13 +80,25 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
     }
   };
 
+  const loadIntegrationSourceEndpoints = async (integrationId: string) => {
+    const { data } = await supabase
+      .from('integration_source_endpoints')
+      .select('source_endpoint_id')
+      .eq('integration_id', integrationId);
+
+    if (data && data.length > 0) {
+      const endpointIds = data.map(d => d.source_endpoint_id);
+      setSourceEndpointIds(endpointIds);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const userId = externalUser?.id || user?.id;
     if (!userId) return;
 
-    if (!sourceEndpointId || !targetEndpointId) {
-      setError('Debes seleccionar los endpoints de origen y destino');
+    if (sourceEndpointIds.length === 0 || !targetEndpointId) {
+      setError('Debes seleccionar al menos un endpoint de origen y un endpoint de destino');
       return;
     }
 
@@ -90,16 +106,12 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
     setLoading(true);
 
     try {
-      const sourceEndpoint = apisWithEndpoints
-        .find(a => a.id === sourceApiId)?.endpoints
-        .find(e => e.id === sourceEndpointId);
-
       const targetEndpoint = apisWithEndpoints
         .find(a => a.id === targetApiId)?.endpoints
         .find(e => e.id === targetEndpointId);
 
-      if (!sourceEndpoint || !targetEndpoint) {
-        throw new Error('Endpoints no encontrados');
+      if (!targetEndpoint) {
+        throw new Error('Endpoint de destino no encontrado');
       }
 
       const headersObject = customHeaders
@@ -124,7 +136,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         name,
         source_api_id: sourceApiId,
         target_api_id: targetApiId,
-        source_endpoint_id: sourceEndpointId,
+        source_endpoint_id: sourceEndpointIds[0],
         target_endpoint_id: targetEndpointId,
         endpoint_path: targetEndpoint.path,
         method: targetEndpoint.method,
@@ -135,20 +147,44 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         path_params: pathParamsConfig
       };
 
+      let integrationId: string;
+
       if (integration) {
+        integrationId = integration.id;
         const { error: updateError } = await supabase
           .from('integrations')
           .update(integrationData)
           .eq('id', integration.id);
 
         if (updateError) throw updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('integrations')
-          .insert(integrationData);
 
-        if (insertError) throw insertError;
+        // Delete existing source endpoints
+        await supabase
+          .from('integration_source_endpoints')
+          .delete()
+          .eq('integration_id', integrationId);
+      } else {
+        const { data: newIntegration, error: insertError } = await supabase
+          .from('integrations')
+          .insert(integrationData)
+          .select()
+          .single();
+
+        if (insertError || !newIntegration) throw insertError || new Error('Failed to create integration');
+        integrationId = newIntegration.id;
       }
+
+      // Insert all source endpoints into junction table
+      const sourceEndpointsData = sourceEndpointIds.map(endpointId => ({
+        integration_id: integrationId,
+        source_endpoint_id: endpointId
+      }));
+
+      const { error: junctionError } = await supabase
+        .from('integration_source_endpoints')
+        .insert(sourceEndpointsData);
+
+      if (junctionError) throw junctionError;
 
       onClose();
     } catch (err) {
@@ -164,7 +200,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
   const sourceEndpoints = apisWithEndpoints.find(a => a.id === sourceApiId)?.endpoints || [];
   const targetEndpoints = apisWithEndpoints.find(a => a.id === targetApiId)?.endpoints || [];
 
-  const selectedSourceEndpoint = sourceEndpoints.find(e => e.id === sourceEndpointId);
+  const selectedSourceEndpoints = sourceEndpoints.filter(e => sourceEndpointIds.includes(e.id));
   const selectedTargetEndpoint = targetEndpoints.find(e => e.id === targetEndpointId);
 
   useEffect(() => {
@@ -242,7 +278,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                     value={sourceApiId}
                     onChange={(e) => {
                       setSourceApiId(e.target.value);
-                      setSourceEndpointId('');
+                      setSourceEndpointIds([]);
                     }}
                     className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
@@ -264,32 +300,60 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                     </label>
                     {sourceEndpoints.length > 0 ? (
                       <div className="space-y-2">
-                        {sourceEndpoints.map(endpoint => (
-                          <button
-                            key={endpoint.id}
-                            type="button"
-                            onClick={() => setSourceEndpointId(endpoint.id)}
-                            className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
-                              sourceEndpointId === endpoint.id
-                                ? 'border-green-600 bg-green-600/10'
-                                : 'border-slate-600 hover:border-slate-500'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className={`px-2 py-1 rounded text-xs font-mono ${
-                                sourceEndpointId === endpoint.id
-                                  ? 'bg-green-600 text-white'
-                                  : 'bg-slate-700 text-slate-300'
-                              }`}>
-                                {endpoint.method}
-                              </span>
-                              <span className="font-mono text-white">{endpoint.path}</span>
-                            </div>
-                            {endpoint.description && (
-                              <p className="text-sm text-slate-400 mt-2">{endpoint.description}</p>
-                            )}
-                          </button>
-                        ))}
+                        <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-3 mb-3">
+                          <p className="text-xs text-blue-300">
+                            <strong>Selección múltiple:</strong> Puedes seleccionar uno o más endpoints de origen.
+                            Todos usarán el mismo endpoint de destino.
+                          </p>
+                        </div>
+                        {sourceEndpoints.map(endpoint => {
+                          const isSelected = sourceEndpointIds.includes(endpoint.id);
+                          return (
+                            <button
+                              key={endpoint.id}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSourceEndpointIds(sourceEndpointIds.filter(id => id !== endpoint.id));
+                                } else {
+                                  setSourceEndpointIds([...sourceEndpointIds, endpoint.id]);
+                                }
+                              }}
+                              className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                                isSelected
+                                  ? 'border-green-600 bg-green-600/10'
+                                  : 'border-slate-600 hover:border-slate-500'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 text-green-600 bg-slate-700 border-slate-600 rounded focus:ring-green-500"
+                                />
+                                <span className={`px-2 py-1 rounded text-xs font-mono ${
+                                  isSelected
+                                    ? 'bg-green-600 text-white'
+                                    : 'bg-slate-700 text-slate-300'
+                                }`}>
+                                  {endpoint.method}
+                                </span>
+                                <span className="font-mono text-white">{endpoint.path}</span>
+                              </div>
+                              {endpoint.description && (
+                                <p className="text-sm text-slate-400 mt-2 ml-7">{endpoint.description}</p>
+                              )}
+                            </button>
+                          );
+                        })}
+                        {sourceEndpointIds.length > 0 && (
+                          <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-3 mt-3">
+                            <p className="text-xs text-green-300">
+                              <strong>{sourceEndpointIds.length}</strong> endpoint{sourceEndpointIds.length !== 1 ? 's' : ''} seleccionado{sourceEndpointIds.length !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="bg-yellow-600/10 border border-yellow-600/30 rounded-lg p-4">
@@ -303,7 +367,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
               </div>
             </div>
 
-            {selectedSourceEndpoint && selectedTargetEndpoint && (
+            {selectedSourceEndpoints.length > 0 && selectedTargetEndpoint && (
               <div className="flex items-center justify-center py-2">
                 <ArrowRight className="w-8 h-8 text-blue-400" />
               </div>

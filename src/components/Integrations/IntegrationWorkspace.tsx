@@ -13,7 +13,7 @@ type APIEndpoint = Database['public']['Tables']['api_endpoints']['Row'];
 interface IntegrationWithAPIs extends Integration {
   source_api: API;
   target_api: API;
-  source_endpoint?: APIEndpoint;
+  source_endpoints?: APIEndpoint[];
   target_endpoint?: APIEndpoint;
 }
 
@@ -39,30 +39,44 @@ export function IntegrationWorkspace() {
       setLoading(true);
     }
 
-    const [{ data: apisData }, { data: integrationsData }, { data: endpointsData }] = await Promise.all([
+    const [{ data: apisData }, { data: integrationsData }, { data: endpointsData }, { data: junctionData }] = await Promise.all([
       supabase.from('apis').select('*').eq('user_id', userId),
       supabase.from('integrations').select('*').eq('user_id', userId),
-      supabase.from('api_endpoints').select('*')
+      supabase.from('api_endpoints').select('*'),
+      supabase.from('integration_source_endpoints').select('*')
     ]);
 
     if (apisData) setApis(apisData);
 
     if (integrationsData && apisData && endpointsData) {
-      const integrationsWithAPIs = integrationsData.map(integration => {
+      const integrationsWithAPIs = await Promise.all(integrationsData.map(async integration => {
         const sourceAPI = apisData.find(api => api.id === integration.source_api_id);
         const targetAPI = apisData.find(api => api.id === integration.target_api_id);
-        const sourceEndpoint = endpointsData.find(ep => ep.id === integration.source_endpoint_id);
-        const targetEndpoint = endpointsData.find(ep => ep.id === integration.target_endpoint_id);
+
+        // Get all source endpoints for this integration from junction table
+        const sourceEndpointIds = junctionData
+          ?.filter(j => j.integration_id === integration.id)
+          .map(j => j.source_endpoint_id) || [];
+
+        // If junction table has data, use that, otherwise fallback to direct column
+        const sourceEndpoints = sourceEndpointIds.length > 0
+          ? endpointsData?.filter(ep => sourceEndpointIds.includes(ep.id)) || []
+          : integration.source_endpoint_id
+            ? [endpointsData?.find(ep => ep.id === integration.source_endpoint_id)].filter(Boolean) as APIEndpoint[]
+            : [];
+
+        const targetEndpoint = endpointsData?.find(ep => ep.id === integration.target_endpoint_id);
+
         return {
           ...integration,
           source_api: sourceAPI!,
           target_api: targetAPI!,
-          source_endpoint: sourceEndpoint,
+          source_endpoints: sourceEndpoints,
           target_endpoint: targetEndpoint
         };
-      }).filter(i => i.source_api && i.target_api);
+      }));
 
-      setIntegrations(integrationsWithAPIs);
+      setIntegrations(integrationsWithAPIs.filter(i => i.source_api && i.target_api));
     }
 
     if (initialLoad) {
@@ -182,12 +196,32 @@ export function IntegrationWorkspace() {
                 <p className="text-xs text-slate-500 mb-1">Origen</p>
                 <p className="text-sm font-medium text-white">{integration.source_api.name}</p>
                 <p className="text-xs text-slate-400 mt-1">{integration.source_api.application_owner}</p>
-                {integration.source_endpoint && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs font-mono bg-green-600/20 text-green-400 px-2 py-0.5 rounded">
-                      {integration.source_endpoint.method}
-                    </span>
-                    <span className="text-xs font-mono text-slate-300">{integration.source_endpoint.path}</span>
+                {integration.source_endpoints && integration.source_endpoints.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {integration.source_endpoints.length === 1 ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono bg-green-600/20 text-green-400 px-2 py-0.5 rounded">
+                          {integration.source_endpoints[0].method}
+                        </span>
+                        <span className="text-xs font-mono text-slate-300">{integration.source_endpoints[0].path}</span>
+                      </div>
+                    ) : (
+                      <>
+                        {integration.source_endpoints.slice(0, 2).map((endpoint, idx) => (
+                          <div key={endpoint.id} className="flex items-center gap-2">
+                            <span className="text-xs font-mono bg-green-600/20 text-green-400 px-2 py-0.5 rounded">
+                              {endpoint.method}
+                            </span>
+                            <span className="text-xs font-mono text-slate-300">{endpoint.path}</span>
+                          </div>
+                        ))}
+                        {integration.source_endpoints.length > 2 && (
+                          <div className="text-xs text-slate-500 font-medium">
+                            +{integration.source_endpoints.length - 2} más
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
