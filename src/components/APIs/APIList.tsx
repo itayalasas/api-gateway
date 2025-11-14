@@ -26,7 +26,14 @@ export function APIList() {
 
   const loadAPIs = async () => {
     const userId = externalUser?.id || user?.id;
-    if (!userId) return;
+    console.log('APIList - Loading APIs for userId:', userId);
+    console.log('APIList - externalUser:', externalUser);
+    console.log('APIList - user:', user);
+
+    if (!userId) {
+      console.log('APIList - No userId found, returning');
+      return;
+    }
 
     if (initialLoad) {
       setLoading(true);
@@ -36,6 +43,9 @@ export function APIList() {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
+
+    console.log('APIList - APIs loaded:', apisData);
+    console.log('APIList - Error:', apisError);
 
     if (apisError) {
       console.error('Error loading APIs:', apisError);

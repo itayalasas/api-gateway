@@ -31,20 +31,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('AuthContext - Initializing...');
     const storedUser = localStorage.getItem('external_user');
     const storedToken = localStorage.getItem('external_access_token');
 
+    console.log('AuthContext - storedUser:', storedUser);
+    console.log('AuthContext - storedToken:', storedToken ? 'exists' : 'null');
+
     if (storedUser && storedToken) {
-      setExternalUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      console.log('AuthContext - Setting externalUser:', parsedUser);
+      setExternalUser(parsedUser);
       setLoading(false);
     } else {
+      console.log('AuthContext - No external user, checking Supabase session');
       supabase.auth.getSession().then(({ data: { session } }) => {
+        console.log('AuthContext - Supabase session:', session);
         setUser(session?.user ?? null);
         setLoading(false);
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         (async () => {
+          console.log('AuthContext - Auth state changed:', event, session);
           setUser(session?.user ?? null);
         })();
       });
@@ -66,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const exchangeAuthCode = async (code: string) => {
     try {
+      console.log('AuthContext - Exchanging code:', code);
       const exchangeUrl = import.meta.env.VITE_AUTH_EXCHANGE_URL;
       const appId = import.meta.env.VITE_AUTH_APP_ID;
 
@@ -85,8 +95,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const result = await response.json();
+      console.log('AuthContext - Exchange result:', result);
 
       if (result.success && result.data) {
+        console.log('AuthContext - Storing user data:', result.data.user);
         localStorage.setItem('external_access_token', result.data.access_token);
         localStorage.setItem('external_refresh_token', result.data.refresh_token);
         localStorage.setItem('external_user', JSON.stringify(result.data.user));
