@@ -22,7 +22,7 @@ interface EndpointForm {
 }
 
 export function APIForm({ api, onClose }: APIFormProps) {
-  const { user } = useAuth();
+  const { user, externalUser } = useAuth();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [applicationOwner, setApplicationOwner] = useState('');
@@ -101,14 +101,15 @@ export function APIForm({ api, onClose }: APIFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    const userId = externalUser?.id || user?.id;
+    if (!userId) return;
 
     setError('');
     setLoading(true);
 
     try {
       const apiData = {
-        user_id: user.id,
+        user_id: userId,
         name,
         description,
         application_owner: applicationOwner,

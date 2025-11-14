@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Activity, Link2, FileText, TrendingUp, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
+import { useAuth } from '../../contexts/AuthContext';
 
 type API = Database['public']['Tables']['apis']['Row'];
 type Integration = Database['public']['Tables']['integrations']['Row'];
@@ -20,6 +21,7 @@ interface DashboardStats {
 }
 
 export function Dashboard() {
+  const { user, externalUser } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalAPIs: 0,
     activeAPIs: 0,
@@ -40,9 +42,12 @@ export function Dashboard() {
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user, externalUser]);
 
   const loadDashboardData = async () => {
+    const userId = externalUser?.id || user?.id;
+    if (!userId) return;
+
     if (initialLoad) {
       setLoading(true);
     }
@@ -53,8 +58,8 @@ export function Dashboard() {
       { data: logsData },
       { data: healthData }
     ] = await Promise.all([
-      supabase.from('apis').select('*'),
-      supabase.from('integrations').select('*'),
+      supabase.from('apis').select('*').eq('user_id', userId),
+      supabase.from('integrations').select('*').eq('user_id', userId),
       supabase.from('request_logs').select('*').order('created_at', { ascending: false }).limit(100),
       supabase.from('health_checks').select('*').order('checked_at', { ascending: false })
     ]);

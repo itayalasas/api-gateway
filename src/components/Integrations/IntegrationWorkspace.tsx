@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { IntegrationForm } from './IntegrationForm';
 import { IntegrationFlow } from './IntegrationFlow';
+import { useAuth } from '../../contexts/AuthContext';
 
 type Integration = Database['public']['Tables']['integrations']['Row'];
 type API = Database['public']['Tables']['apis']['Row'];
@@ -17,6 +18,7 @@ interface IntegrationWithAPIs extends Integration {
 }
 
 export function IntegrationWorkspace() {
+  const { user, externalUser } = useAuth();
   const [integrations, setIntegrations] = useState<IntegrationWithAPIs[]>([]);
   const [apis, setApis] = useState<API[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,16 +29,19 @@ export function IntegrationWorkspace() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user, externalUser]);
 
   const loadData = async () => {
+    const userId = externalUser?.id || user?.id;
+    if (!userId) return;
+
     if (initialLoad) {
       setLoading(true);
     }
 
     const [{ data: apisData }, { data: integrationsData }, { data: endpointsData }] = await Promise.all([
-      supabase.from('apis').select('*'),
-      supabase.from('integrations').select('*'),
+      supabase.from('apis').select('*').eq('user_id', userId),
+      supabase.from('integrations').select('*').eq('user_id', userId),
       supabase.from('api_endpoints').select('*')
     ]);
 

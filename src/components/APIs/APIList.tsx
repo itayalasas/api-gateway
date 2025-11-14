@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Globe, Lock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { APIForm } from './APIForm';
+import { useAuth } from '../../contexts/AuthContext';
 
 type API = Database['public']['Tables']['apis']['Row'];
 type APISecurity = Database['public']['Tables']['api_security']['Row'];
@@ -12,6 +13,7 @@ interface APIWithSecurity extends API {
 }
 
 export function APIList() {
+  const { user, externalUser } = useAuth();
   const [apis, setApis] = useState<APIWithSecurity[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -20,15 +22,19 @@ export function APIList() {
 
   useEffect(() => {
     loadAPIs();
-  }, []);
+  }, [user, externalUser]);
 
   const loadAPIs = async () => {
+    const userId = externalUser?.id || user?.id;
+    if (!userId) return;
+
     if (initialLoad) {
       setLoading(true);
     }
     const { data: apisData, error: apisError } = await supabase
       .from('apis')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (apisError) {

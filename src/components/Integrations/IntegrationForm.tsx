@@ -19,7 +19,7 @@ interface APIWithEndpoints extends API {
 }
 
 export function IntegrationForm({ integration, apis, onClose }: IntegrationFormProps) {
-  const { user } = useAuth();
+  const { user, externalUser } = useAuth();
   const [name, setName] = useState('');
   const [sourceApiId, setSourceApiId] = useState('');
   const [targetApiId, setTargetApiId] = useState('');
@@ -59,7 +59,8 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    const userId = externalUser?.id || user?.id;
+    if (!userId) return;
 
     if (!sourceEndpointId || !targetEndpointId) {
       setError('Debes seleccionar los endpoints de origen y destino');
@@ -83,7 +84,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
       }
 
       const integrationData = {
-        user_id: user.id,
+        user_id: userId,
         name,
         source_api_id: sourceApiId,
         target_api_id: targetApiId,
