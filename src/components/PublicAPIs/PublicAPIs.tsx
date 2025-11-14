@@ -57,15 +57,23 @@ export function PublicAPIs() {
   }) => {
     const apiKey = generateApiKey();
 
+    const targetAPI = apis.find(api => api.id === data.targetApiId);
+    if (!targetAPI) {
+      throw new Error('API interna no encontrada');
+    }
+
     const { error } = await supabase.from('integrations').insert({
       name: data.name,
-      description: data.description,
-      source_api_id: null,
+      description: data.description || '',
+      user_id: targetAPI.user_id,
+      source_api_id: targetAPI.id,
       target_api_id: data.targetApiId,
+      endpoint_path: '/',
+      method: 'POST',
       integration_type: 'public_proxy',
       api_key: apiKey,
       is_active: true,
-      config: {
+      transform_config: {
         proxy_type: 'public',
         auto_forward: true
       }

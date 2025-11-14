@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Book, ChevronRight, ChevronDown, Code, Zap, Database, Webhook, Settings, Key, ArrowRight, Copy, CheckCheck } from 'lucide-react';
+import { Book, ChevronRight, ChevronDown, Code, Zap, Database, Webhook, Settings, Key, ArrowRight, Copy, CheckCheck, Globe } from 'lucide-react';
 
 interface Section {
   id: string;
@@ -1288,6 +1288,348 @@ sendPushNotification()
                   <li>• Revisa el Response Body en los logs para más detalles</li>
                 </ul>
               </div>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'public-apis',
+      title: 'APIs Públicas para Terceros',
+      icon: <Globe className="w-5 h-5" />,
+      content: (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-3">¿Qué son las APIs Públicas?</h3>
+            <p className="text-slate-300 mb-4">
+              Las APIs Públicas te permiten exponer tus servicios internos para que terceros externos puedan consumirlos
+              de forma segura y controlada. Funcionan como un proxy público que redirige las peticiones a tus APIs internas.
+            </p>
+
+            <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 mb-4">
+              <h4 className="text-blue-300 font-semibold mb-2">Casos de uso:</h4>
+              <ul className="space-y-2 text-blue-200 text-sm">
+                <li className="flex items-start gap-2">
+                  <ArrowRight className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>Exponer servicios a clientes externos (B2B)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ArrowRight className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>Permitir integraciones con partners comerciales</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ArrowRight className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>APIs para aplicaciones móviles/web de terceros</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ArrowRight className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>Recibir datos de sistemas externos (webhooks inversos)</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-slate-900 rounded-lg p-4 mb-4">
+              <h4 className="text-white font-semibold mb-3">Arquitectura:</h4>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="bg-purple-600/20 border border-purple-600/40 rounded px-3 py-2 text-purple-300">
+                  Cliente Externo
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-500" />
+                <div className="bg-blue-600/20 border border-blue-600/40 rounded px-3 py-2 text-blue-300">
+                  API Pública (Gateway)
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-500" />
+                <div className="bg-green-600/20 border border-green-600/40 rounded px-3 py-2 text-green-300">
+                  API Interna
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-3">1. Crear una API Pública</h3>
+
+            <div className="bg-slate-900 rounded-lg p-4 mb-4">
+              <h4 className="text-white font-semibold mb-3">Pasos:</h4>
+              <ol className="space-y-3 text-slate-300">
+                <li className="flex items-start gap-2">
+                  <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">1</span>
+                  <span>Asegúrate de tener al menos una API interna (tipo "Published") creada</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">2</span>
+                  <span>Ve a la sección "APIs Públicas" en el menú lateral</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">3</span>
+                  <span>Haz clic en "Nueva API Pública"</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">4</span>
+                  <span>Completa el formulario:
+                    <ul className="mt-2 space-y-1 text-slate-400 text-sm ml-6">
+                      <li>• Nombre descriptivo</li>
+                      <li>• Descripción opcional</li>
+                      <li>• Selecciona la API interna destino</li>
+                    </ul>
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">5</span>
+                  <span>Al crear, se genera automáticamente una URL pública y una API Key</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="bg-green-600/10 border border-green-600/30 rounded-lg p-4">
+              <h4 className="text-green-300 font-semibold mb-2">✓ Generación Automática</h4>
+              <p className="text-green-200 text-sm">
+                FlowBridge genera automáticamente una URL pública única y una API Key segura (prefijo <code className="text-green-300">pub_</code>)
+                para cada API pública que crees.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-3">2. Compartir Credenciales con Terceros</h3>
+            <p className="text-slate-300 mb-4">
+              Una vez creada la API pública, comparte estas credenciales con tus clientes:
+            </p>
+
+            <div className="space-y-4">
+              <div className="bg-slate-900 rounded-lg p-4">
+                <h4 className="text-slate-400 text-sm mb-2">URL Pública:</h4>
+                <CodeBlock
+                  code="https://[tu-gateway].supabase.co/functions/v1/api-gateway/[integration-id]"
+                  language="text"
+                />
+              </div>
+
+              <div className="bg-slate-900 rounded-lg p-4">
+                <h4 className="text-slate-400 text-sm mb-2">API Key:</h4>
+                <CodeBlock
+                  code="pub_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6..."
+                  language="text"
+                />
+              </div>
+
+              <div className="bg-slate-900 rounded-lg p-4">
+                <h4 className="text-slate-400 text-sm mb-2">Header Requerido:</h4>
+                <CodeBlock
+                  code="X-Integration-Key: pub_[tu-api-key]"
+                  language="text"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-3">3. Ejemplo de Uso por Terceros</h3>
+
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-white font-semibold mb-3">JavaScript/Fetch:</h4>
+                <CodeBlock
+                  language="javascript"
+                  code={`const response = await fetch(
+  'https://[gateway].supabase.co/functions/v1/api-gateway/[id]',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Integration-Key': 'pub_a1b2c3d4e5f6g7h8...'
+    },
+    body: JSON.stringify({
+      amount: 100.00,
+      currency: 'USD',
+      customer_id: 'cust_12345'
+    })
+  }
+);
+
+const data = await response.json();
+console.log(data);`}
+                />
+              </div>
+
+              <div>
+                <h4 className="text-white font-semibold mb-3">cURL:</h4>
+                <CodeBlock
+                  language="bash"
+                  code={`curl -X POST https://[gateway].supabase.co/functions/v1/api-gateway/[id] \\
+  -H "Content-Type: application/json" \\
+  -H "X-Integration-Key: pub_a1b2c3d4e5f6g7h8..." \\
+  -d '{
+    "amount": 100.00,
+    "currency": "USD",
+    "customer_id": "cust_12345"
+  }'`}
+                />
+              </div>
+
+              <div>
+                <h4 className="text-white font-semibold mb-3">Python:</h4>
+                <CodeBlock
+                  language="python"
+                  code={`import requests
+
+url = 'https://[gateway].supabase.co/functions/v1/api-gateway/[id]'
+headers = {
+    'Content-Type': 'application/json',
+    'X-Integration-Key': 'pub_a1b2c3d4e5f6g7h8...'
+}
+payload = {
+    'amount': 100.00,
+    'currency': 'USD',
+    'customer_id': 'cust_12345'
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())`}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-3">4. Gestionar APIs Públicas</h3>
+
+            <div className="space-y-4">
+              <div className="bg-slate-900 rounded-lg p-4">
+                <h4 className="text-white font-semibold mb-2">Activar/Desactivar</h4>
+                <p className="text-slate-300 text-sm mb-2">
+                  Puedes desactivar temporalmente una API sin eliminarla usando el botón de encendido/apagado.
+                </p>
+                <p className="text-yellow-400 text-sm">
+                  ⚠️ Cuando está inactiva, todas las peticiones serán rechazadas con error 403.
+                </p>
+              </div>
+
+              <div className="bg-slate-900 rounded-lg p-4">
+                <h4 className="text-white font-semibold mb-2">Regenerar API Key</h4>
+                <p className="text-slate-300 text-sm mb-2">
+                  Si una API Key ha sido comprometida, puedes regenerarla desde la lista de APIs Públicas.
+                </p>
+                <p className="text-red-400 text-sm">
+                  ⚠️ La API Key anterior dejará de funcionar inmediatamente. Notifica a tus clientes.
+                </p>
+              </div>
+
+              <div className="bg-slate-900 rounded-lg p-4">
+                <h4 className="text-white font-semibold mb-2">Eliminar API Pública</h4>
+                <p className="text-slate-300 text-sm mb-2">
+                  Usa el botón de basura para eliminar permanentemente una API pública.
+                </p>
+                <p className="text-red-400 text-sm">
+                  ⚠️ Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-3">5. Monitoreo y Logs</h3>
+            <p className="text-slate-300 mb-4">
+              Todas las peticiones a tus APIs públicas se registran automáticamente. Para ver los logs:
+            </p>
+
+            <div className="bg-slate-900 rounded-lg p-4 mb-4">
+              <ol className="space-y-2 text-slate-300">
+                <li className="flex items-start gap-2">
+                  <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">1</span>
+                  <span>Ve a la sección "Webhooks"</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">2</span>
+                  <span>Selecciona tu integración tipo "public_proxy"</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">3</span>
+                  <span>Observa los logs en tiempo real con todos los detalles</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4">
+              <h4 className="text-blue-300 font-semibold mb-2">Información registrada:</h4>
+              <ul className="space-y-1 text-blue-200 text-sm">
+                <li>• Método HTTP y path</li>
+                <li>• Request body completo</li>
+                <li>• Response body completo</li>
+                <li>• Tiempo de respuesta</li>
+                <li>• Estado HTTP</li>
+                <li>• Headers de la petición</li>
+              </ul>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-3">6. Seguridad y Mejores Prácticas</h3>
+
+            <div className="space-y-3">
+              <div className="bg-green-600/10 border-l-4 border-green-600 rounded-lg p-4">
+                <h4 className="text-green-300 font-semibold mb-2">✓ Recomendaciones</h4>
+                <ul className="space-y-1 text-green-200 text-sm">
+                  <li>• Nunca compartas API Keys públicamente (repositorios, Slack, etc.)</li>
+                  <li>• Usa variables de entorno para almacenar API Keys</li>
+                  <li>• Rota las API Keys periódicamente (cada 90 días)</li>
+                  <li>• Monitorea logs para detectar actividad sospechosa</li>
+                  <li>• Desactiva APIs no utilizadas</li>
+                </ul>
+              </div>
+
+              <div className="bg-yellow-600/10 border-l-4 border-yellow-600 rounded-lg p-4">
+                <h4 className="text-yellow-300 font-semibold mb-2">⚠️ Limitaciones Actuales</h4>
+                <ul className="space-y-1 text-yellow-200 text-sm">
+                  <li>• No hay rate limiting automático (implementa en tu API interna)</li>
+                  <li>• No hay transformación de datos (lo que entra, sale igual)</li>
+                  <li>• No hay versionado de APIs</li>
+                  <li>• No hay documentación auto-generada (Swagger/OpenAPI)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-3">7. Diferencias con Integraciones Normales</h3>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-700">
+                    <th className="text-left py-3 px-4 text-slate-400 font-semibold">Característica</th>
+                    <th className="text-left py-3 px-4 text-slate-400 font-semibold">API Pública</th>
+                    <th className="text-left py-3 px-4 text-slate-400 font-semibold">Integración Normal</th>
+                  </tr>
+                </thead>
+                <tbody className="text-slate-300">
+                  <tr className="border-b border-slate-800">
+                    <td className="py-3 px-4">Propósito</td>
+                    <td className="py-3 px-4 text-blue-400">Exponer a terceros</td>
+                    <td className="py-3 px-4">Conectar sistemas internos</td>
+                  </tr>
+                  <tr className="border-b border-slate-800">
+                    <td className="py-3 px-4">Dirección</td>
+                    <td className="py-3 px-4 text-blue-400">Uni-direccional (entrada)</td>
+                    <td className="py-3 px-4">Bi-direccional</td>
+                  </tr>
+                  <tr className="border-b border-slate-800">
+                    <td className="py-3 px-4">Autenticación</td>
+                    <td className="py-3 px-4 text-blue-400">API Key pública</td>
+                    <td className="py-3 px-4">Múltiples métodos</td>
+                  </tr>
+                  <tr className="border-b border-slate-800">
+                    <td className="py-3 px-4">Consumidor</td>
+                    <td className="py-3 px-4 text-blue-400">Clientes externos</td>
+                    <td className="py-3 px-4">Servicios internos</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-4">Configuración</td>
+                    <td className="py-3 px-4 text-blue-400">Simple (solo destino)</td>
+                    <td className="py-3 px-4">Compleja (source + target)</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
