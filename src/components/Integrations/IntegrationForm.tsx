@@ -668,18 +668,27 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
             </div>
           )}
 
-          {selectedSourceEndpoint && selectedTargetEndpoint && (
+          {selectedSourceEndpoints.length > 0 && selectedTargetEndpoint && (
             <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4">
               <h4 className="text-sm font-semibold text-blue-400 mb-2">Resumen de la Integración:</h4>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400">Origen:</span>
-                  <span className="font-mono text-white">{selectedSourceEndpoint.method} {selectedSourceEndpoint.path}</span>
+              <div className="space-y-3">
+                <div className="text-sm">
+                  <span className="text-slate-400 block mb-2">Origen ({selectedSourceEndpoints.length} endpoint{selectedSourceEndpoints.length !== 1 ? 's' : ''}):</span>
+                  <div className="space-y-1 ml-4">
+                    {selectedSourceEndpoints.map(endpoint => (
+                      <div key={endpoint.id} className="flex items-center gap-2">
+                        <span className="font-mono text-white text-xs">{endpoint.method} {endpoint.path}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <ArrowRight className="w-4 h-4 text-blue-400" />
                 <div className="flex items-center gap-2">
-                  <span className="text-slate-400">Destino:</span>
-                  <span className="font-mono text-white">{selectedTargetEndpoint.method} {selectedTargetEndpoint.path}</span>
+                  <ArrowRight className="w-4 h-4 text-blue-400" />
+                  <span className="text-slate-400 text-sm">Todos redirigen a:</span>
+                </div>
+                <div className="text-sm ml-4">
+                  <span className="text-slate-400 block mb-1">Destino:</span>
+                  <span className="font-mono text-white text-xs">{selectedTargetEndpoint.method} {selectedTargetEndpoint.path}</span>
                 </div>
               </div>
             </div>
