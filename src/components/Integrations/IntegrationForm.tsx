@@ -30,6 +30,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
   const [error, setError] = useState('');
   const [customHeaders, setCustomHeaders] = useState<Array<{ key: string; value: string }>>([{ key: '', value: '' }]);
   const [forwardHeaders, setForwardHeaders] = useState<string[]>(['']);
+  const [pathParams, setPathParams] = useState<Array<{ param: string; source: string; path: string }>>([]);
 
   useEffect(() => {
     loadEndpoints();
@@ -53,6 +54,10 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
 
       if (integration.forward_headers && Array.isArray(integration.forward_headers)) {
         setForwardHeaders(integration.forward_headers.length > 0 ? integration.forward_headers : ['']);
+      }
+
+      if (integration.path_params && Array.isArray(integration.path_params)) {
+        setPathParams(integration.path_params);
       }
     }
   }, [integration]);
@@ -105,6 +110,14 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         .filter(h => h.trim() !== '')
         .map(h => h.trim());
 
+      const pathParamsConfig = pathParams
+        .filter(p => p.path.trim() !== '')
+        .map(p => ({
+          param: p.param,
+          source: p.source,
+          path: p.path
+        }));
+
       const integrationData = {
         user_id: userId,
         name,
@@ -117,7 +130,8 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         is_active: true,
         transform_config: {},
         custom_headers: headersObject,
-        forward_headers: forwardHeadersList
+        forward_headers: forwardHeadersList,
+        path_params: pathParamsConfig
       };
 
       if (integration) {
@@ -151,6 +165,22 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
 
   const selectedSourceEndpoint = sourceEndpoints.find(e => e.id === sourceEndpointId);
   const selectedTargetEndpoint = targetEndpoints.find(e => e.id === targetEndpointId);
+
+  useEffect(() => {
+    if (selectedTargetEndpoint) {
+      const pathParamRegex = /:(\w+)/g;
+      const matches = [...selectedTargetEndpoint.path.matchAll(pathParamRegex)];
+      const detectedParams = matches.map(match => match[1]);
+
+      if (detectedParams.length > 0 && pathParams.length === 0) {
+        setPathParams(detectedParams.map(param => ({
+          param,
+          source: 'body',
+          path: ''
+        })));
+      }
+    }
+  }, [selectedTargetEndpoint]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -468,6 +498,88 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                     <li>Los headers de seguridad del Gateway NO se reenvían automáticamente</li>
                   </ul>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {pathParams.length > 0 && (
+            <div className="bg-slate-900 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <span className="bg-orange-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">5</span>
+                Parámetros de Ruta Dinámicos
+              </h3>
+              <p className="text-sm text-slate-400 mb-4">
+                El endpoint de destino contiene parámetros dinámicos. Configura de dónde obtener sus valores.
+              </p>
+
+              <div className="space-y-4">
+                {pathParams.map((paramConfig, index) => (
+                  <div key={index} className="bg-slate-800 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <code className="px-2 py-1 bg-orange-600/20 border border-orange-600/40 text-orange-300 rounded text-sm font-mono">
+                        :{paramConfig.param}
+                      </code>
+                      <span className="text-slate-500 text-sm">→</span>
+                      <span className="text-slate-400 text-sm">Configurar origen del valor</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">
+                          Fuente de Datos
+                        </label>
+                        <select
+                          value={paramConfig.source}
+                          onChange={(e) => {
+                            const newParams = [...pathParams];
+                            newParams[index].source = e.target.value;
+                            setPathParams(newParams);
+                          }}
+                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        >
+                          <option value="body">Body (JSON)</option>
+                          <option value="query">Query Parameter</option>
+                          <option value="header">Header</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">
+                          Ruta/Nombre del Campo
+                        </label>
+                        <input
+                          type="text"
+                          value={paramConfig.path}
+                          onChange={(e) => {
+                            const newParams = [...pathParams];
+                            newParams[index].path = e.target.value;
+                            setPathParams(newParams);
+                          }}
+                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          placeholder={
+                            paramConfig.source === 'body' ? 'data.projectId' :
+                            paramConfig.source === 'query' ? 'projectId' :
+                            'X-Project-ID'
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900/50 border border-slate-700 rounded p-2">
+                      <p className="text-xs text-slate-400">
+                        {paramConfig.source === 'body' && (
+                          <>Ejemplo: Si API 1 envía <code className="text-orange-300">{"{ data: { projectId: '123' } }"}</code>, usa <code className="text-orange-300">data.projectId</code></>
+                        )}
+                        {paramConfig.source === 'query' && (
+                          <>Ejemplo: Si API 1 envía <code className="text-orange-300">?projectId=123</code>, usa <code className="text-orange-300">projectId</code></>
+                        )}
+                        {paramConfig.source === 'header' && (
+                          <>Ejemplo: Si API 1 envía header <code className="text-orange-300">X-Project-ID: 123</code>, usa <code className="text-orange-300">X-Project-ID</code></>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

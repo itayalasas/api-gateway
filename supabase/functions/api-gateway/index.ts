@@ -240,7 +240,29 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const targetUrl = `${targetApi.base_url}${targetEndpoint.path}`;
+    let targetPath = targetEndpoint.path;
+
+    if (integration.path_params && Array.isArray(integration.path_params)) {
+      const pathParams = integration.path_params as Array<{ param: string; source: string; path: string }>;
+
+      for (const paramConfig of pathParams) {
+        let value: any;
+
+        if (paramConfig.source === 'body') {
+          value = getNestedValue(parsedBody, paramConfig.path);
+        } else if (paramConfig.source === 'query') {
+          value = url.searchParams.get(paramConfig.path);
+        } else if (paramConfig.source === 'header') {
+          value = req.headers.get(paramConfig.path);
+        }
+
+        if (value !== null && value !== undefined) {
+          targetPath = targetPath.replace(`:${paramConfig.param}`, String(value));
+        }
+      }
+    }
+
+    const targetUrl = `${targetApi.base_url}${targetPath}`;
     const targetHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     };
