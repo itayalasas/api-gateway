@@ -245,6 +245,20 @@ Deno.serve(async (req: Request) => {
       'Content-Type': 'application/json',
     };
 
+    if (integration.forward_headers && Array.isArray(integration.forward_headers)) {
+      const headersToForward = integration.forward_headers as string[];
+      const excludedHeaders = ['authorization', 'x-integration-key', 'x-integration-id', 'host', 'connection'];
+
+      for (const headerName of headersToForward) {
+        if (headerName && !excludedHeaders.includes(headerName.toLowerCase())) {
+          const headerValue = req.headers.get(headerName);
+          if (headerValue) {
+            targetHeaders[headerName] = headerValue;
+          }
+        }
+      }
+    }
+
     if (integration.custom_headers && typeof integration.custom_headers === 'object') {
       const customHeaders = integration.custom_headers as Record<string, string>;
       for (const [key, value] of Object.entries(customHeaders)) {
