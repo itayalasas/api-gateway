@@ -180,7 +180,10 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
 
       const allParams = [...colonParams, ...dollarParams];
 
-      if (allParams.length > 0 && pathParams.length === 0) {
+      const currentParamNames = pathParams.map(p => p.param).sort().join(',');
+      const newParamNames = allParams.map(p => p.name).sort().join(',');
+
+      if (currentParamNames !== newParamNames) {
         setPathParams(allParams.map(p => ({
           param: p.name,
           source: 'body',
@@ -188,6 +191,8 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
           format: p.format
         })));
       }
+    } else if (pathParams.length > 0) {
+      setPathParams([]);
     }
   }, [selectedTargetEndpoint]);
 

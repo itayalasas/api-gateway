@@ -259,7 +259,8 @@ Deno.serve(async (req: Request) => {
         if (value !== null && value !== undefined) {
           const format = paramConfig.format || ':';
           if (format === '${}') {
-            targetPath = targetPath.replace(`\${${paramConfig.param}}`, String(value));
+            const pattern = '${' + paramConfig.param + '}';
+            targetPath = targetPath.replace(pattern, String(value));
           } else {
             targetPath = targetPath.replace(`:${paramConfig.param}`, String(value));
           }
