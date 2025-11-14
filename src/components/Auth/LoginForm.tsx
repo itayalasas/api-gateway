@@ -3,30 +3,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Mail, Lock, Eye, EyeOff, CheckCircle, ArrowRight, Zap, Lock as LockIcon, Layers } from 'lucide-react';
 
 export function LoginForm() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { redirectToExternalAuth } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const handleExternalLogin = () => {
     setLoading(true);
-
-    try {
-      if (isSignUp) {
-        await signUp(email, password);
-      } else {
-        await signIn(email, password);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ocurrió un error');
-    } finally {
-      setLoading(false);
-    }
+    redirectToExternalAuth();
   };
 
   return (
@@ -109,86 +92,32 @@ export function LoginForm() {
               Usa tu sistema de autenticación empresarial para acceder de forma segura
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                    placeholder="tu@email.com"
-                    required
-                  />
-                </div>
+            {error && (
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6">
+                <p className="text-sm text-red-700 font-medium">{error}</p>
               </div>
+            )}
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-2">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                    placeholder="••••••••"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
-                  <p className="text-sm text-red-700 font-medium">{error}</p>
-                </div>
+            <button
+              onClick={handleExternalLogin}
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:from-slate-400 disabled:to-slate-400 text-white font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl disabled:cursor-not-allowed group"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <LockIcon className="w-5 h-5" />
+                  <span>Iniciar Sesión con AuthSystem</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </>
               )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:from-slate-400 disabled:to-slate-400 text-white font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl disabled:cursor-not-allowed group"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Iniciar Sesión</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
+            </button>
 
             <div className="mt-8 pt-8 border-t-2 border-slate-100">
-              <p className="text-center text-sm text-slate-600 mb-4">
-                ¿No tienes cuenta?
+              <p className="text-center text-sm text-slate-600">
+                Al iniciar sesión serás redirigido al sistema de autenticación empresarial
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setError('');
-                }}
-                className="w-full text-emerald-600 hover:text-emerald-700 font-semibold text-sm py-2 transition-colors"
-              >
-                Crear cuenta
-              </button>
             </div>
 
             <div className="mt-8">

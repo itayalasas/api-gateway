@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginForm } from './components/Auth/LoginForm';
+import { AuthCallback } from './components/Auth/AuthCallback';
 import { Sidebar } from './components/Layout/Sidebar';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import { APIList } from './components/APIs/APIList';
@@ -10,8 +11,16 @@ import { WebhookSetup } from './components/Webhooks/WebhookSetup';
 import { SystemSettings } from './components/Settings/SystemSettings';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, externalUser, loading } = useAuth();
   const [activeView, setActiveView] = useState('dashboard');
+  const [isCallback, setIsCallback] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('code') && params.get('state')) {
+      setIsCallback(true);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -21,7 +30,11 @@ function AppContent() {
     );
   }
 
-  if (!user) {
+  if (isCallback) {
+    return <AuthCallback />;
+  }
+
+  if (!user && !externalUser) {
     return <LoginForm />;
   }
 
