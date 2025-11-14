@@ -710,7 +710,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
             </button>
             <button
               type="submit"
-              disabled={loading || !sourceEndpointId || !targetEndpointId}
+              disabled={loading || sourceEndpointIds.length === 0 || !targetEndpointId}
               className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white px-4 py-2.5 rounded-lg transition-colors"
             >
               {loading ? 'Guardando...' : integration ? 'Actualizar' : 'Crear Integración'}
