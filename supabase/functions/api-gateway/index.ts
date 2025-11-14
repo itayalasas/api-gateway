@@ -245,6 +245,15 @@ Deno.serve(async (req: Request) => {
       'Content-Type': 'application/json',
     };
 
+    if (integration.custom_headers && typeof integration.custom_headers === 'object') {
+      const customHeaders = integration.custom_headers as Record<string, string>;
+      for (const [key, value] of Object.entries(customHeaders)) {
+        if (key && value) {
+          targetHeaders[key] = value;
+        }
+      }
+    }
+
     if (security && security.auth_type !== 'none') {
       const authConfig = security.auth_config as any;
 

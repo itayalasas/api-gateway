@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ArrowRight } from 'lucide-react';
+import { X, ArrowRight, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,6 +28,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
   const [apisWithEndpoints, setApisWithEndpoints] = useState<APIWithEndpoints[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [customHeaders, setCustomHeaders] = useState<Array<{ key: string; value: string }>>([{ key: '', value: '' }]);
 
   useEffect(() => {
     loadEndpoints();
@@ -40,6 +41,14 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
       setTargetApiId(integration.target_api_id);
       if (integration.source_endpoint_id) setSourceEndpointId(integration.source_endpoint_id);
       if (integration.target_endpoint_id) setTargetEndpointId(integration.target_endpoint_id);
+
+      if (integration.custom_headers && typeof integration.custom_headers === 'object') {
+        const headers = Object.entries(integration.custom_headers).map(([key, value]) => ({
+          key,
+          value: String(value)
+        }));
+        setCustomHeaders(headers.length > 0 ? headers : [{ key: '', value: '' }]);
+      }
     }
   }, [integration]);
 
@@ -83,6 +92,10 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         throw new Error('Endpoints no encontrados');
       }
 
+      const headersObject = customHeaders
+        .filter(h => h.key.trim() !== '')
+        .reduce((acc, h) => ({ ...acc, [h.key]: h.value }), {});
+
       const integrationData = {
         user_id: userId,
         name,
@@ -93,7 +106,8 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         endpoint_path: targetEndpoint.path,
         method: targetEndpoint.method,
         is_active: true,
-        transform_config: {}
+        transform_config: {},
+        custom_headers: headersObject
       };
 
       if (integration) {
@@ -317,6 +331,74 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
               </div>
             </div>
           </div>
+
+          {targetApiId && (
+            <div className="bg-slate-900 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <span className="bg-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span>
+                Headers Personalizados (Opcional)
+              </h3>
+              <p className="text-sm text-slate-400 mb-4">
+                Agrega headers personalizados que se enviarán con cada solicitud a la API de destino
+              </p>
+
+              <div className="space-y-3">
+                {customHeaders.map((header, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={header.key}
+                      onChange={(e) => {
+                        const newHeaders = [...customHeaders];
+                        newHeaders[index].key = e.target.value;
+                        setCustomHeaders(newHeaders);
+                      }}
+                      className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Nombre del Header (ej: Authorization, X-API-Key)"
+                    />
+                    <input
+                      type="text"
+                      value={header.value}
+                      onChange={(e) => {
+                        const newHeaders = [...customHeaders];
+                        newHeaders[index].value = e.target.value;
+                        setCustomHeaders(newHeaders);
+                      }}
+                      className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Valor del Header"
+                    />
+                    {customHeaders.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newHeaders = customHeaders.filter((_, i) => i !== index);
+                          setCustomHeaders(newHeaders);
+                        }}
+                        className="p-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/40 text-red-400 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setCustomHeaders([...customHeaders, { key: '', value: '' }])}
+                  className="w-full py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                  Agregar Header
+                </button>
+
+                <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-3 mt-3">
+                  <p className="text-xs text-blue-300">
+                    <strong>Ejemplos comunes:</strong> Authorization, X-API-Key, Content-Type, Accept, User-Agent, X-Custom-Header
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {selectedSourceEndpoint && selectedTargetEndpoint && (
             <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4">
