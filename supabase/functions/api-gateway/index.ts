@@ -243,7 +243,7 @@ Deno.serve(async (req: Request) => {
     let targetPath = targetEndpoint.path;
 
     if (integration.path_params && Array.isArray(integration.path_params)) {
-      const pathParams = integration.path_params as Array<{ param: string; source: string; path: string }>;
+      const pathParams = integration.path_params as Array<{ param: string; source: string; path: string; format?: string }>;
 
       for (const paramConfig of pathParams) {
         let value: any;
@@ -257,7 +257,12 @@ Deno.serve(async (req: Request) => {
         }
 
         if (value !== null && value !== undefined) {
-          targetPath = targetPath.replace(`:${paramConfig.param}`, String(value));
+          const format = paramConfig.format || ':';
+          if (format === '${}') {
+            targetPath = targetPath.replace(`\${${paramConfig.param}}`, String(value));
+          } else {
+            targetPath = targetPath.replace(`:${paramConfig.param}`, String(value));
+          }
         }
       }
     }

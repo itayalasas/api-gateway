@@ -115,7 +115,8 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         .map(p => ({
           param: p.param,
           source: p.source,
-          path: p.path
+          path: p.path,
+          format: p.format || ':'
         }));
 
       const integrationData = {
@@ -168,15 +169,23 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
 
   useEffect(() => {
     if (selectedTargetEndpoint) {
-      const pathParamRegex = /:(\w+)/g;
-      const matches = [...selectedTargetEndpoint.path.matchAll(pathParamRegex)];
-      const detectedParams = matches.map(match => match[1]);
+      const colonParamRegex = /:(\w+)/g;
+      const dollarParamRegex = /\$\{(\w+)\}/g;
 
-      if (detectedParams.length > 0 && pathParams.length === 0) {
-        setPathParams(detectedParams.map(param => ({
-          param,
+      const colonMatches = [...selectedTargetEndpoint.path.matchAll(colonParamRegex)];
+      const dollarMatches = [...selectedTargetEndpoint.path.matchAll(dollarParamRegex)];
+
+      const colonParams = colonMatches.map(match => ({ name: match[1], format: ':' }));
+      const dollarParams = dollarMatches.map(match => ({ name: match[1], format: '${}' }));
+
+      const allParams = [...colonParams, ...dollarParams];
+
+      if (allParams.length > 0 && pathParams.length === 0) {
+        setPathParams(allParams.map(p => ({
+          param: p.name,
           source: 'body',
-          path: ''
+          path: '',
+          format: p.format
         })));
       }
     }
@@ -517,7 +526,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                   <div key={index} className="bg-slate-800 rounded-lg p-4 space-y-3">
                     <div className="flex items-center gap-2 mb-2">
                       <code className="px-2 py-1 bg-orange-600/20 border border-orange-600/40 text-orange-300 rounded text-sm font-mono">
-                        :{paramConfig.param}
+                        {paramConfig.format === '${}' ? `\${${paramConfig.param}}` : `:${paramConfig.param}`}
                       </code>
                       <span className="text-slate-500 text-sm">→</span>
                       <span className="text-slate-400 text-sm">Configurar origen del valor</span>
