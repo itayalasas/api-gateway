@@ -11,7 +11,7 @@ type API = DB['public']['Tables']['apis']['Row'];
 interface PublicAPIListProps {
   publicAPIs: Integration[];
   apis: API[];
-  onDelete: (id: string) => void;
+  onDelete: (id: string, name: string) => void;
   onToggleActive: (id: string, currentStatus: boolean) => void;
   onViewLogs?: (integrationId: string) => void;
 }
@@ -204,7 +204,7 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onVi
                     )}
                   </button>
                   <button
-                    onClick={() => onDelete(publicAPI.id)}
+                    onClick={() => onDelete(publicAPI.id, publicAPI.name)}
                     className="bg-red-600/20 hover:bg-red-600/30 text-red-400 p-2 rounded-lg transition-colors"
                     title="Eliminar"
                   >

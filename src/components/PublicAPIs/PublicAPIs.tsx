@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { Database as DB } from '../../lib/database.types';
 import { PublicAPIList } from './PublicAPIList';
 import { PublicAPIForm } from './PublicAPIForm';
+import { useToast } from '../../hooks/useToast';
+import { ConfirmDialog } from '../UI/ConfirmDialog';
 
 type Integration = DB['public']['Tables']['integrations']['Row'];
 type API = DB['public']['Tables']['apis']['Row'];
@@ -14,6 +16,8 @@ export function PublicAPIs() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const { success, error: showError, ToastContainer } = useToast();
 
   useEffect(() => {
     loadData();
@@ -145,22 +149,26 @@ export function PublicAPIs() {
     setShowForm(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar esta API pública? Esta acción no se puede deshacer.')) {
-      return;
-    }
+  const handleDeleteClick = (id: string, name: string) => {
+    setDeleteConfirm({ id, name });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
 
     const { error } = await supabase
       .from('integrations')
       .delete()
-      .eq('id', id);
+      .eq('id', deleteConfirm.id);
 
     if (error) {
       console.error('Error deleting public API:', error);
-      alert('Error al eliminar la API pública');
+      showError('Error al eliminar la API pública');
       return;
     }
 
+    success('API pública eliminada correctamente');
+    setDeleteConfirm(null);
     await loadData();
   };
 
@@ -172,10 +180,11 @@ export function PublicAPIs() {
 
     if (error) {
       console.error('Error toggling active status:', error);
-      alert('Error al cambiar el estado de la API');
+      showError('Error al cambiar el estado de la API');
       return;
     }
 
+    success(currentStatus ? 'API desactivada correctamente' : 'API activada correctamente');
     await loadData();
   };
 
@@ -270,9 +279,23 @@ export function PublicAPIs() {
       <PublicAPIList
         publicAPIs={publicAPIs}
         apis={apis}
-        onDelete={handleDelete}
+        onDelete={handleDeleteClick}
         onToggleActive={handleToggleActive}
       />
+
+      {deleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar API Pública"
+          message={`¿Estás seguro de eliminar la API pública "${deleteConfirm.name}"? Esta acción no se puede deshacer y la API dejará de estar disponible públicamente.`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          confirmVariant="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
+
+      <ToastContainer />
     </div>
   );
 }

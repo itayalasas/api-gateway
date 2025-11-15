@@ -5,6 +5,8 @@ import { Database } from '../../lib/database.types';
 import { APIForm } from './APIForm';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
+import { useToast } from '../../hooks/useToast';
+import { ConfirmDialog } from '../UI/ConfirmDialog';
 
 type API = Database['public']['Tables']['apis']['Row'];
 type APISecurity = Database['public']['Tables']['api_security']['Row'];
@@ -27,6 +29,8 @@ export function APIList() {
   const [initialLoad, setInitialLoad] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingAPI, setEditingAPI] = useState<API | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const { success, error: showError, ToastContainer } = useToast();
 
   useEffect(() => {
     loadAPIs();
@@ -85,19 +89,26 @@ export function APIList() {
     setLoading(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta API?')) return;
+  const handleDeleteClick = (id: string, name: string) => {
+    setDeleteConfirm({ id, name });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
 
     const { error } = await supabase
       .from('apis')
       .delete()
-      .eq('id', id);
+      .eq('id', deleteConfirm.id);
 
     if (error) {
       console.error('Error deleting API:', error);
+      showError('Error al eliminar la API');
       return;
     }
 
+    success('API eliminada correctamente');
+    setDeleteConfirm(null);
     loadAPIs();
   };
 
@@ -277,7 +288,7 @@ export function APIList() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(api.id)}
+                        onClick={() => handleDeleteClick(api.id, api.name)}
                         className="bg-red-600/20 hover:bg-red-600/30 text-red-400 px-3 py-2 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -297,6 +308,20 @@ export function APIList() {
           onClose={handleCloseForm}
         />
       )}
+
+      {deleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar API"
+          message={`¿Estás seguro de eliminar la API "${deleteConfirm.name}"? Esta acción no se puede deshacer y eliminará todos los endpoints asociados.`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          confirmVariant="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
+
+      <ToastContainer />
     </div>
   );
 }

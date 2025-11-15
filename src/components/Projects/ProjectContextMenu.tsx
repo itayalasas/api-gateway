@@ -2,6 +2,8 @@ import { Edit, Share2, Power, Trash2, Plus, Globe, Link2 } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useProject } from '../../contexts/ProjectContext';
+import { useToast } from '../../hooks/useToast';
+import { ConfirmDialog } from '../UI/ConfirmDialog';
 
 interface ProjectContextMenuProps {
   projectId: string;
@@ -14,7 +16,9 @@ interface ProjectContextMenuProps {
 export function ProjectContextMenu({ projectId, position, onClose, onEdit, activeView }: ProjectContextMenuProps) {
   const { projects, refreshProjects, setSelectedProject, selectedProject } = useProject();
   const [loading, setLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const project = projects.find(p => p.id === projectId);
+  const { success, error: showError, ToastContainer } = useToast();
 
   const handleCreateAPI = () => {
     localStorage.setItem('tempProjectId', projectId);
@@ -51,20 +55,22 @@ export function ProjectContextMenu({ projectId, position, onClose, onEdit, activ
       }
 
       await refreshProjects();
+      success(project.is_active ? 'Proyecto desactivado correctamente' : 'Proyecto activado correctamente');
       onClose();
     } catch (error) {
       console.error('Error toggling project:', error);
-      alert('Error al actualizar el proyecto');
+      showError('Error al actualizar el proyecto');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('¿Estás seguro de eliminar este proyecto? Esta acción no se puede deshacer.')) {
-      return;
-    }
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
 
+  const handleConfirmDelete = async () => {
+    setShowDeleteConfirm(false);
     setLoading(true);
     try {
       const { error } = await supabase
@@ -79,10 +85,11 @@ export function ProjectContextMenu({ projectId, position, onClose, onEdit, activ
       }
 
       await refreshProjects();
+      success('Proyecto eliminado correctamente');
       onClose();
     } catch (error) {
       console.error('Error deleting project:', error);
-      alert('Error al eliminar el proyecto');
+      showError('Error al eliminar el proyecto');
     } finally {
       setLoading(false);
     }
@@ -91,6 +98,8 @@ export function ProjectContextMenu({ projectId, position, onClose, onEdit, activ
   if (!project) return null;
 
   return (
+    <>
+      <ToastContainer />
     <div
       className="fixed bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 z-50 min-w-[200px]"
       style={{
@@ -166,7 +175,7 @@ export function ProjectContextMenu({ projectId, position, onClose, onEdit, activ
       <div className="h-px bg-slate-700 my-1" />
 
       <button
-        onClick={handleDelete}
+        onClick={handleDeleteClick}
         disabled={loading}
         className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
       >
@@ -174,5 +183,18 @@ export function ProjectContextMenu({ projectId, position, onClose, onEdit, activ
         <span>Eliminar</span>
       </button>
     </div>
+
+    {showDeleteConfirm && (
+      <ConfirmDialog
+        title="Eliminar Proyecto"
+        message={`¿Estás seguro de eliminar el proyecto "${project.name}"? Esta acción no se puede deshacer y se eliminarán todas las APIs e integraciones asociadas.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        confirmVariant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    )}
+    </>
   );
 }

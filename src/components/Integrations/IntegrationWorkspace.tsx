@@ -6,6 +6,8 @@ import { IntegrationForm } from './IntegrationForm';
 import { IntegrationFlow } from './IntegrationFlow';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
+import { useToast } from '../../hooks/useToast';
+import { ConfirmDialog } from '../UI/ConfirmDialog';
 
 type Integration = Database['public']['Tables']['integrations']['Row'];
 type API = Database['public']['Tables']['apis']['Row'];
@@ -34,6 +36,8 @@ export function IntegrationWorkspace() {
   const [showForm, setShowForm] = useState(false);
   const [editingIntegration, setEditingIntegration] = useState<Integration | null>(null);
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationWithAPIs | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const { success, error: showError, ToastContainer } = useToast();
 
   useEffect(() => {
     loadData();
@@ -122,15 +126,28 @@ export function IntegrationWorkspace() {
     if (!error) loadData();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta integración?')) return;
+  const handleDeleteClick = (id: string, name: string) => {
+    setDeleteConfirm({ id, name });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
 
     const { error } = await supabase
       .from('integrations')
       .delete()
-      .eq('id', id);
+      .eq('id', deleteConfirm.id);
 
-    if (!error) loadData();
+    if (error) {
+      console.error('Error deleting integration:', error);
+      showError('Error al eliminar la integración');
+      return;
+    }
+
+    success('Integración eliminada correctamente');
+    setDeleteConfirm(null);
+    setSelectedIntegration(null);
+    loadData();
   };
 
   const handleEdit = (integration: Integration) => {
@@ -378,7 +395,7 @@ export function IntegrationWorkspace() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDelete(integration.id);
+                          handleDeleteClick(integration.id, integration.name);
                         }}
                         className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium rounded transition-colors"
                       >
@@ -400,6 +417,20 @@ export function IntegrationWorkspace() {
           onClose={handleCloseForm}
         />
       )}
+
+      {deleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar Integración"
+          message={`¿Estás seguro de eliminar la integración "${deleteConfirm.name}"? Esta acción no se puede deshacer.`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          confirmVariant="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
+
+      <ToastContainer />
     </div>
   );
 }
