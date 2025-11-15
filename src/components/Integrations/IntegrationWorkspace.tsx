@@ -393,24 +393,6 @@ export function IntegrationWorkspace() {
         </div>
       )}
 
-      {/* Context Menu */}
-      {contextMenu && (
-        <div
-          className="fixed bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2 z-50"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => handleCreateIntegration(contextMenu.projectId)}
-            className="w-full px-4 py-2 text-left text-white hover:bg-slate-700 flex items-center gap-2"
-            disabled={apis.length < 2}
-          >
-            <Plus className="w-4 h-4" />
-            Crear Integración
-          </button>
-        </div>
-      )}
-
       {showForm && (
         <IntegrationForm
           integration={editingIntegration}

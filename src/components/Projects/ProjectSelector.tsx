@@ -72,14 +72,14 @@ export function ProjectSelector({ activeView }: ProjectSelectorProps) {
             key={project.id}
             className="relative group"
           >
-            <button
-              onClick={() => setSelectedProject(project)}
-              onContextMenu={(e) => handleContextMenu(e, project.id)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+            <div
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors cursor-pointer ${
                 selectedProject?.id === project.id
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-300 hover:bg-slate-700/50'
               }`}
+              onClick={() => setSelectedProject(project)}
+              onContextMenu={(e) => handleContextMenu(e, project.id)}
               title={project.description || project.name}
             >
               <div
@@ -103,7 +103,7 @@ export function ProjectSelector({ activeView }: ProjectSelectorProps) {
               >
                 <MoreVertical className="w-3 h-3" />
               </button>
-            </button>
+            </div>
           </div>
         ))}
 
