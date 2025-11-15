@@ -43,6 +43,45 @@ export function PublicAPIs() {
     return () => window.removeEventListener('create-public-api', handleCreatePublicAPIEvent);
   }, []);
 
+  const autoFixPublicAPIs = async (integrations: Integration[]) => {
+    const fixPromises = integrations.map(async (integration) => {
+      // Check if this integration is missing endpoint configuration
+      if (integration.target_api_id && !integration.target_endpoint_id) {
+        try {
+          console.log(`Auto-fixing integration ${integration.name} (${integration.id})`);
+
+          // Get the first endpoint for the target API
+          const { data: endpoints } = await supabase
+            .from('api_endpoints')
+            .select('*')
+            .eq('api_id', integration.target_api_id)
+            .limit(1);
+
+          if (endpoints && endpoints.length > 0) {
+            const endpoint = endpoints[0];
+
+            // Update the integration with the missing fields
+            await supabase
+              .from('integrations')
+              .update({
+                target_endpoint_id: endpoint.id,
+                endpoint_path: endpoint.path,
+                method: endpoint.method,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', integration.id);
+
+            console.log(`Fixed integration ${integration.name}`);
+          }
+        } catch (error) {
+          console.error(`Failed to auto-fix integration ${integration.id}:`, error);
+        }
+      }
+    });
+
+    await Promise.all(fixPromises);
+  };
+
   const loadData = async () => {
     const userId = externalUser?.id || user?.id;
     if (!userId) return;
@@ -72,7 +111,11 @@ export function PublicAPIs() {
           .order('name')
       ]);
 
-      if (integrationsResult.data) setPublicAPIs(integrationsResult.data);
+      if (integrationsResult.data) {
+        setPublicAPIs(integrationsResult.data);
+        // Auto-fix any public APIs missing endpoint configuration
+        await autoFixPublicAPIs(integrationsResult.data);
+      }
       if (apisResult.data) setApis(apisResult.data);
     } catch (error) {
       console.error('Error loading data:', error);

@@ -235,6 +235,13 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (!targetApi || !targetEndpoint) {
+      const debugInfo = {
+        target_api_id: integration.target_api_id,
+        target_endpoint_id: integration.target_endpoint_id,
+        targetApi_found: !!targetApi,
+        targetEndpoint_found: !!targetEndpoint
+      };
+
       await logRequest(supabase, {
         integration_id: integrationId,
         request_id: requestId,
@@ -243,14 +250,18 @@ Deno.serve(async (req: Request) => {
         headers: Object.fromEntries(req.headers.entries()),
         body: parsedBody,
         response_status: 500,
-        response_body: { error: 'Target API configuration not found' },
+        response_body: { error: 'Target API configuration not found', debug: debugInfo },
         response_time_ms: Date.now() - startTime,
-        error_message: 'Target API or endpoint not configured',
+        error_message: `Target API or endpoint not configured. Debug: ${JSON.stringify(debugInfo)}`,
         created_at: new Date().toISOString()
       });
 
       return new Response(
-        JSON.stringify({ error: 'Target API configuration not found' }),
+        JSON.stringify({
+          error: 'Target API configuration not found',
+          message: 'The target API or endpoint is not properly configured for this integration',
+          debug: debugInfo
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

@@ -78,15 +78,49 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
         // Remove prefix from targetApiId if present
         const cleanTargetId = targetApiId.replace(/^(api-|int-)/, '');
 
+        // If target API changed, we need to update endpoint info
+        const updateData: any = {
+          name: name.trim(),
+          description: description.trim(),
+          project_id: projectId || null,
+          updated_at: new Date().toISOString()
+        };
+
+        // Check if target API was changed
+        if (cleanTargetId !== editingPublicAPI.target_api_id) {
+          // Get the new target API and its first endpoint
+          const { data: targetApi } = await supabase
+            .from('apis')
+            .select('*')
+            .eq('id', cleanTargetId)
+            .maybeSingle();
+
+          if (!targetApi) {
+            throw new Error('API target no encontrada');
+          }
+
+          const { data: endpoints } = await supabase
+            .from('api_endpoints')
+            .select('*')
+            .eq('api_id', cleanTargetId)
+            .limit(1);
+
+          if (!endpoints || endpoints.length === 0) {
+            throw new Error('La API target no tiene endpoints configurados');
+          }
+
+          const targetEndpoint = endpoints[0];
+
+          updateData.source_api_id = cleanTargetId;
+          updateData.target_api_id = cleanTargetId;
+          updateData.target_endpoint_id = targetEndpoint.id;
+          updateData.endpoint_path = targetEndpoint.path;
+          updateData.method = targetEndpoint.method;
+        }
+
         const { error: updateError } = await supabase
           .from('integrations')
-          .update({
-            name: name.trim(),
-            description: description.trim(),
-            target_api_id: cleanTargetId,
-            project_id: projectId || null,
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', editingPublicAPI.id);
 
         if (updateError) throw updateError;
