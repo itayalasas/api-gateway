@@ -24,12 +24,13 @@ interface EndpointForm {
 
 export function APIForm({ api, onClose }: APIFormProps) {
   const { user, externalUser } = useAuth();
-  const { selectedProject } = useProject();
+  const { selectedProject, projects } = useProject();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [applicationOwner, setApplicationOwner] = useState('');
   const [type, setType] = useState<'published' | 'external'>('external');
   const [baseUrl, setBaseUrl] = useState('');
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [authType, setAuthType] = useState<AuthType>('none');
   const [authConfig, setAuthConfig] = useState<Record<string, string>>({});
   const [customHeaders, setCustomHeaders] = useState<Array<{ key: string; value: string }>>([{ key: '', value: '' }]);
@@ -44,10 +45,13 @@ export function APIForm({ api, onClose }: APIFormProps) {
       setApplicationOwner(api.application_owner);
       setType(api.type);
       setBaseUrl(api.base_url);
+      setProjectId(api.project_id);
       loadSecurity(api.id);
       loadEndpoints(api.id);
+    } else if (selectedProject) {
+      setProjectId(selectedProject.id);
     }
-  }, [api]);
+  }, [api, selectedProject]);
 
   const loadSecurity = async (apiId: string) => {
     const { data } = await supabase
@@ -127,6 +131,7 @@ export function APIForm({ api, onClose }: APIFormProps) {
         application_owner: applicationOwner,
         type,
         base_url: baseUrl,
+        project_id: projectId,
         is_active: true
       };
 
@@ -400,6 +405,27 @@ export function APIForm({ api, onClose }: APIFormProps) {
                 required
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Proyecto
+            </label>
+            <select
+              value={projectId || ''}
+              onChange={(e) => setProjectId(e.target.value || null)}
+              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Sin proyecto</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 mt-1">
+              Asigna esta API a un proyecto para organizarla
+            </p>
           </div>
 
           <div>
