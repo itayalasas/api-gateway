@@ -54,42 +54,78 @@ export function PublicAPIs() {
     name: string;
     description: string;
     targetApiId: string;
+    sourceType: 'api' | 'integration';
   }) => {
     const apiKey = generateApiKey();
 
-    const targetAPI = apis.find(api => api.id === data.targetApiId);
-    if (!targetAPI) {
-      throw new Error('API interna no encontrada');
+    // Remove prefix from targetApiId
+    const cleanTargetId = data.targetApiId.replace(/^(api-|int-)/, '');
+
+    let targetApiId: string;
+    let targetEndpointId: string;
+    let endpointPath: string;
+    let method: string;
+    let userId: string;
+
+    if (data.sourceType === 'api') {
+      // Source is a published API
+      const targetAPI = apis.find(api => api.id === cleanTargetId);
+      if (!targetAPI) {
+        throw new Error('API interna no encontrada');
+      }
+
+      // Get the first endpoint of the target API
+      const { data: endpoints, error: endpointsError } = await supabase
+        .from('api_endpoints')
+        .select('*')
+        .eq('api_id', cleanTargetId)
+        .limit(1);
+
+      if (endpointsError || !endpoints || endpoints.length === 0) {
+        throw new Error('La API target no tiene endpoints configurados. Por favor, agrega al menos un endpoint a la API primero.');
+      }
+
+      const targetEndpoint = endpoints[0];
+      targetApiId = cleanTargetId;
+      targetEndpointId = targetEndpoint.id;
+      endpointPath = targetEndpoint.path;
+      method = targetEndpoint.method;
+      userId = targetAPI.user_id;
+    } else {
+      // Source is an existing public_proxy integration
+      const sourceIntegration = publicAPIs.find(int => int.id === cleanTargetId);
+      if (!sourceIntegration) {
+        throw new Error('Integración pública no encontrada');
+      }
+
+      if (!sourceIntegration.target_api_id || !sourceIntegration.target_endpoint_id) {
+        throw new Error('La integración seleccionada no tiene una API target configurada');
+      }
+
+      // Use the same target as the source integration
+      targetApiId = sourceIntegration.target_api_id;
+      targetEndpointId = sourceIntegration.target_endpoint_id;
+      endpointPath = sourceIntegration.endpoint_path;
+      method = sourceIntegration.method;
+      userId = sourceIntegration.user_id;
     }
-
-    // Get the first endpoint of the target API
-    const { data: endpoints, error: endpointsError } = await supabase
-      .from('api_endpoints')
-      .select('*')
-      .eq('api_id', data.targetApiId)
-      .limit(1);
-
-    if (endpointsError || !endpoints || endpoints.length === 0) {
-      throw new Error('La API target no tiene endpoints configurados. Por favor, agrega al menos un endpoint a la API primero.');
-    }
-
-    const targetEndpoint = endpoints[0];
 
     const { error } = await supabase.from('integrations').insert({
       name: data.name,
       description: data.description || '',
-      user_id: targetAPI.user_id,
-      source_api_id: targetAPI.id,
-      target_api_id: data.targetApiId,
-      target_endpoint_id: targetEndpoint.id,
-      endpoint_path: targetEndpoint.path,
-      method: targetEndpoint.method,
+      user_id: userId,
+      source_api_id: targetApiId,
+      target_api_id: targetApiId,
+      target_endpoint_id: targetEndpointId,
+      endpoint_path: endpointPath,
+      method: method,
       integration_type: 'public_proxy',
       api_key: apiKey,
       is_active: true,
       transform_config: {
         proxy_type: 'public',
-        auto_forward: true
+        auto_forward: true,
+        source_type: data.sourceType
       }
     });
 
@@ -217,6 +253,7 @@ export function PublicAPIs() {
       {showForm && (
         <PublicAPIForm
           apis={apis}
+          publicAPIs={publicAPIs}
           onSubmit={handleCreatePublicAPI}
           onCancel={() => setShowForm(false)}
         />

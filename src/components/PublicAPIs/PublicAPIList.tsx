@@ -149,7 +149,7 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onVi
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-xs px-2 py-1 rounded font-medium ${
                       publicAPI.is_active
                         ? 'bg-green-600/20 text-green-400'
@@ -160,6 +160,19 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onVi
                     <span className="text-xs px-2 py-1 rounded bg-blue-600/20 text-blue-400 font-medium">
                       Proxy Público
                     </span>
+                    {publicAPI.transform_config &&
+                     typeof publicAPI.transform_config === 'object' &&
+                     'source_type' in publicAPI.transform_config && (
+                      <span className={`text-xs px-2 py-1 rounded font-medium ${
+                        publicAPI.transform_config.source_type === 'integration'
+                          ? 'bg-purple-600/20 text-purple-400'
+                          : 'bg-cyan-600/20 text-cyan-400'
+                      }`}>
+                        {publicAPI.transform_config.source_type === 'integration'
+                          ? '🔗 Basada en API Pública'
+                          : '📍 Basada en API Interna'}
+                      </span>
+                    )}
                   </div>
                 </div>
 

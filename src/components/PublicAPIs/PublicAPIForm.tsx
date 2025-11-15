@@ -1,27 +1,33 @@
 import { useState } from 'react';
-import { Save, X, AlertCircle, Globe } from 'lucide-react';
+import { Save, X, AlertCircle, Globe, Layers } from 'lucide-react';
 import { Database as DB } from '../../lib/database.types';
 
 type API = DB['public']['Tables']['apis']['Row'];
+type Integration = DB['public']['Tables']['integrations']['Row'];
 
 interface PublicAPIFormProps {
   apis: API[];
+  publicAPIs: Integration[];
   onSubmit: (data: {
     name: string;
     description: string;
     targetApiId: string;
+    sourceType: 'api' | 'integration';
   }) => Promise<void>;
   onCancel: () => void;
 }
 
-export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) {
+export function PublicAPIForm({ apis, publicAPIs, onSubmit, onCancel }: PublicAPIFormProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [targetApiId, setTargetApiId] = useState('');
+  const [sourceType, setSourceType] = useState<'api' | 'integration'>('api');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const publishedAPIs = apis.filter(api => api.type === 'published' && api.is_active);
+  const activePublicAPIs = publicAPIs.filter(api => api.is_active);
+  const hasOptions = publishedAPIs.length > 0 || activePublicAPIs.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +39,7 @@ export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) 
     }
 
     if (!targetApiId) {
-      setError('Debes seleccionar una API interna');
+      setError('Debes seleccionar una API o integración');
       return;
     }
 
@@ -42,7 +48,8 @@ export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) 
       await onSubmit({
         name: name.trim(),
         description: description.trim(),
-        targetApiId
+        targetApiId,
+        sourceType
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear la API pública');
@@ -63,14 +70,14 @@ export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) 
         </div>
       </div>
 
-      {publishedAPIs.length === 0 && (
+      {!hasOptions && (
         <div className="bg-yellow-600/10 border border-yellow-600/30 rounded-lg p-4 mb-6">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-yellow-100">
-              <p className="font-semibold mb-1">No hay APIs internas disponibles</p>
+              <p className="font-semibold mb-1">No hay APIs disponibles</p>
               <p className="text-yellow-200">
-                Necesitas crear al menos una API interna (tipo "published") en la sección de APIs antes de poder crear una API pública.
+                Necesitas crear al menos una API interna (tipo "published") en la sección de APIs o tener una API pública existente antes de poder crear una nueva.
               </p>
             </div>
           </div>
@@ -114,23 +121,52 @@ export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) 
 
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            API Interna (Destino) *
+            Fuente (Destino) *
           </label>
           <select
             value={targetApiId}
-            onChange={(e) => setTargetApiId(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setTargetApiId(value);
+
+              // Detect source type from value
+              if (value.startsWith('api-')) {
+                setSourceType('api');
+              } else if (value.startsWith('int-')) {
+                setSourceType('integration');
+              }
+            }}
             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
-            disabled={loading || publishedAPIs.length === 0}
+            disabled={loading || !hasOptions}
           >
-            <option value="">-- Selecciona una API interna --</option>
-            {publishedAPIs.map((api) => (
-              <option key={api.id} value={api.id}>
-                {api.name} - {api.base_url}
-              </option>
-            ))}
+            <option value="">-- Selecciona una API o integración --</option>
+
+            {publishedAPIs.length > 0 && (
+              <optgroup label="📍 APIs Internas">
+                {publishedAPIs.map((api) => (
+                  <option key={api.id} value={`api-${api.id}`}>
+                    {api.name} - {api.base_url}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+
+            {activePublicAPIs.length > 0 && (
+              <optgroup label="🌐 APIs Públicas Existentes">
+                {activePublicAPIs.map((integration) => {
+                  const api = apis.find(a => a.id === integration.target_api_id);
+                  return (
+                    <option key={integration.id} value={`int-${integration.id}`}>
+                      {integration.name} {api ? `→ ${api.name}` : ''}
+                    </option>
+                  );
+                })}
+              </optgroup>
+            )}
           </select>
           <p className="text-xs text-slate-500 mt-1">
-            La API interna a la que se redirigirán las peticiones
+            <Layers className="w-3 h-3 inline mr-1" />
+            Selecciona una API interna o una API pública existente como destino
           </p>
         </div>
 
@@ -153,7 +189,7 @@ export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            disabled={loading || publishedAPIs.length === 0}
+            disabled={loading || !hasOptions}
             className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors font-semibold"
           >
             {loading ? (
