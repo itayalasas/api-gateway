@@ -103,18 +103,6 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onVi
     }
   }, [expandedLogs]);
 
-  if (publicAPIs.length === 0) {
-    return (
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-12 text-center">
-        <Globe className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-white mb-2">No hay APIs Públicas</h3>
-        <p className="text-slate-400 max-w-md mx-auto">
-          Crea tu primera API pública para que terceros puedan consumir tus servicios internos de forma segura.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       {publicAPIs.map((publicAPI) => {
