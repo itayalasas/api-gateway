@@ -24,6 +24,7 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onVi
   const [expandedLogs, setExpandedLogs] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, RequestLog[]>>({});
   const [loadingLogs, setLoadingLogs] = useState<string | null>(null);
+  const [expandedLogDetail, setExpandedLogDetail] = useState<string | null>(null);
   const { getGatewayUrl } = useGatewayUrl();
 
   const copyToClipboard = (text: string, id: string, type: 'url' | 'key') => {
@@ -300,8 +301,8 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onVi
                 {logs[publicAPI.id] && logs[publicAPI.id].length > 0 ? (
                   <LogStream
                     logs={logs[publicAPI.id]}
-                    onToggleExpand={(logId) => {}}
-                    expandedLog={null}
+                    onLogClick={(logId) => setExpandedLogDetail(expandedLogDetail === logId ? null : logId)}
+                    expandedLog={expandedLogDetail}
                   />
                 ) : (
                   <div className="text-center py-8 text-slate-500">

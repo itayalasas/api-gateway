@@ -220,7 +220,7 @@ Deno.serve(async (req: Request) => {
       .from('apis')
       .select('*')
       .eq('id', integration.target_api_id)
-      .single();
+      .maybeSingle();
 
     const { data: targetEndpoint } = await supabase
       .from('api_endpoints')

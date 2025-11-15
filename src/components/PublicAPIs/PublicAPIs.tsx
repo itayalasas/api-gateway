@@ -62,14 +62,28 @@ export function PublicAPIs() {
       throw new Error('API interna no encontrada');
     }
 
+    // Get the first endpoint of the target API
+    const { data: endpoints, error: endpointsError } = await supabase
+      .from('api_endpoints')
+      .select('*')
+      .eq('api_id', data.targetApiId)
+      .limit(1);
+
+    if (endpointsError || !endpoints || endpoints.length === 0) {
+      throw new Error('La API target no tiene endpoints configurados. Por favor, agrega al menos un endpoint a la API primero.');
+    }
+
+    const targetEndpoint = endpoints[0];
+
     const { error } = await supabase.from('integrations').insert({
       name: data.name,
       description: data.description || '',
       user_id: targetAPI.user_id,
       source_api_id: targetAPI.id,
       target_api_id: data.targetApiId,
-      endpoint_path: '/',
-      method: 'POST',
+      target_endpoint_id: targetEndpoint.id,
+      endpoint_path: targetEndpoint.path,
+      method: targetEndpoint.method,
       integration_type: 'public_proxy',
       api_key: apiKey,
       is_active: true,
