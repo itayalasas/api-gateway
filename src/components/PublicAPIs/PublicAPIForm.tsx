@@ -3,11 +3,9 @@ import { Save, X, AlertCircle, Globe, Layers } from 'lucide-react';
 import { Database as DB } from '../../lib/database.types';
 
 type API = DB['public']['Tables']['apis']['Row'];
-type Integration = DB['public']['Tables']['integrations']['Row'];
 
 interface PublicAPIFormProps {
   apis: API[];
-  publicAPIs: Integration[];
   onSubmit: (data: {
     name: string;
     description: string;
@@ -17,7 +15,7 @@ interface PublicAPIFormProps {
   onCancel: () => void;
 }
 
-export function PublicAPIForm({ apis, publicAPIs, onSubmit, onCancel }: PublicAPIFormProps) {
+export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [targetApiId, setTargetApiId] = useState('');
@@ -26,8 +24,8 @@ export function PublicAPIForm({ apis, publicAPIs, onSubmit, onCancel }: PublicAP
   const [error, setError] = useState('');
 
   const publishedAPIs = apis.filter(api => api.type === 'published' && api.is_active);
-  const activePublicAPIs = publicAPIs.filter(api => api.is_active);
-  const hasOptions = publishedAPIs.length > 0 || activePublicAPIs.length > 0;
+  const externalAPIs = apis.filter(api => api.type === 'external' && api.is_active);
+  const hasOptions = publishedAPIs.length > 0 || externalAPIs.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +37,7 @@ export function PublicAPIForm({ apis, publicAPIs, onSubmit, onCancel }: PublicAP
     }
 
     if (!targetApiId) {
-      setError('Debes seleccionar una API o integración');
+      setError('Debes seleccionar una API');
       return;
     }
 
@@ -77,7 +75,7 @@ export function PublicAPIForm({ apis, publicAPIs, onSubmit, onCancel }: PublicAP
             <div className="text-sm text-yellow-100">
               <p className="font-semibold mb-1">No hay APIs disponibles</p>
               <p className="text-yellow-200">
-                Necesitas crear al menos una API interna (tipo "published") en la sección de APIs o tener una API pública existente antes de poder crear una nueva.
+                Necesitas crear al menos una API (interna o externa) en la sección de APIs antes de poder crear una API pública.
               </p>
             </div>
           </div>
@@ -121,28 +119,18 @@ export function PublicAPIForm({ apis, publicAPIs, onSubmit, onCancel }: PublicAP
 
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            Fuente (Destino) *
+            API (Fuente) *
           </label>
           <select
             value={targetApiId}
-            onChange={(e) => {
-              const value = e.target.value;
-              setTargetApiId(value);
-
-              // Detect source type from value
-              if (value.startsWith('api-')) {
-                setSourceType('api');
-              } else if (value.startsWith('int-')) {
-                setSourceType('integration');
-              }
-            }}
+            onChange={(e) => setTargetApiId(e.target.value)}
             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
             disabled={loading || !hasOptions}
           >
-            <option value="">-- Selecciona una API o integración --</option>
+            <option value="">-- Selecciona una API --</option>
 
             {publishedAPIs.length > 0 && (
-              <optgroup label="📍 APIs Internas">
+              <optgroup label="📍 APIs Internas (Published)">
                 {publishedAPIs.map((api) => (
                   <option key={api.id} value={`api-${api.id}`}>
                     {api.name} - {api.base_url}
@@ -151,22 +139,19 @@ export function PublicAPIForm({ apis, publicAPIs, onSubmit, onCancel }: PublicAP
               </optgroup>
             )}
 
-            {activePublicAPIs.length > 0 && (
-              <optgroup label="🌐 APIs Públicas Existentes">
-                {activePublicAPIs.map((integration) => {
-                  const api = apis.find(a => a.id === integration.target_api_id);
-                  return (
-                    <option key={integration.id} value={`int-${integration.id}`}>
-                      {integration.name} {api ? `→ ${api.name}` : ''}
-                    </option>
-                  );
-                })}
+            {externalAPIs.length > 0 && (
+              <optgroup label="🌐 APIs Externas">
+                {externalAPIs.map((api) => (
+                  <option key={api.id} value={`api-${api.id}`}>
+                    {api.name} - {api.base_url}
+                  </option>
+                ))}
               </optgroup>
             )}
           </select>
           <p className="text-xs text-slate-500 mt-1">
             <Layers className="w-3 h-3 inline mr-1" />
-            Selecciona una API interna o una API pública existente como destino
+            Selecciona una API del menú "APIs" para exponerla públicamente
           </p>
         </div>
 
@@ -175,8 +160,9 @@ export function PublicAPIForm({ apis, publicAPIs, onSubmit, onCancel }: PublicAP
           <ul className="text-xs text-blue-100 space-y-1">
             <li>• Se generará automáticamente una URL pública y una API Key</li>
             <li>• Los terceros usarán la URL pública con la API Key en el header</li>
-            <li>• Todas las peticiones se redirigirán a tu API interna seleccionada</li>
-            <li>• Puedes ver todos los logs y monitorear las peticiones en tiempo real</li>
+            <li>• Todas las peticiones se redirigirán a la API seleccionada</li>
+            <li>• Puedes exponer tanto APIs internas como externas de forma segura</li>
+            <li>• Monitorea todos los logs y peticiones en tiempo real</li>
           </ul>
         </div>
 
