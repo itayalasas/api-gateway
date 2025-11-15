@@ -15,7 +15,7 @@ const COLORS = [
 ];
 
 export function ProjectFormModal({ projectId, onClose }: ProjectFormModalProps) {
-  const { user } = useAuth();
+  const { user, externalUser } = useAuth();
   const { refreshProjects, projects } = useProject();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -43,7 +43,8 @@ export function ProjectFormModal({ projectId, onClose }: ProjectFormModalProps) 
       return;
     }
 
-    if (!user) {
+    const userId = externalUser?.id || user?.id;
+    if (!userId) {
       setError('Usuario no autenticado');
       return;
     }
@@ -68,7 +69,7 @@ export function ProjectFormModal({ projectId, onClose }: ProjectFormModalProps) 
             name: name.trim(),
             description: description.trim(),
             color,
-            user_id: user.id,
+            user_id: userId,
           });
 
         if (insertError) throw insertError;

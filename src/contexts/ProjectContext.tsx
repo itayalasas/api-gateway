@@ -16,13 +16,14 @@ interface ProjectContextType {
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, externalUser } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadProjects = async () => {
-    if (!user) {
+    const userId = externalUser?.id || user?.id;
+    if (!userId) {
       setProjects([]);
       setSelectedProject(null);
       setLoading(false);
@@ -34,6 +35,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
+        .eq('user_id', userId)
         .eq('is_active', true)
         .order('name');
 
@@ -61,7 +63,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadProjects();
-  }, [user]);
+  }, [user, externalUser]);
 
   const handleSetSelectedProject = (project: Project | null) => {
     setSelectedProject(project);
