@@ -48,8 +48,15 @@ export function APIForm({ api, onClose }: APIFormProps) {
       setProjectId(api.project_id);
       loadSecurity(api.id);
       loadEndpoints(api.id);
-    } else if (selectedProject) {
-      setProjectId(selectedProject.id);
+    } else {
+      // Verificar si hay un proyecto temporal (desde menú contextual)
+      const tempProjectId = localStorage.getItem('tempProjectId');
+      if (tempProjectId) {
+        setProjectId(tempProjectId);
+        localStorage.removeItem('tempProjectId');
+      } else if (selectedProject) {
+        setProjectId(selectedProject.id);
+      }
     }
   }, [api, selectedProject]);
 

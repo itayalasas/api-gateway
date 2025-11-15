@@ -3,6 +3,7 @@ import { X, ArrowRight, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProject } from '../../contexts/ProjectContext';
 import { QueryParamsConfig } from './QueryParamsConfig';
 import { ProxyModeConfig } from './ProxyModeConfig';
 
@@ -22,11 +23,13 @@ interface APIWithEndpoints extends API {
 
 export function IntegrationForm({ integration, apis, onClose }: IntegrationFormProps) {
   const { user, externalUser } = useAuth();
+  const { selectedProject, projects } = useProject();
   const [name, setName] = useState('');
   const [sourceApiId, setSourceApiId] = useState('');
   const [targetApiId, setTargetApiId] = useState('');
   const [sourceEndpointIds, setSourceEndpointIds] = useState<string[]>([]);
   const [targetEndpointId, setTargetEndpointId] = useState('');
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [apisWithEndpoints, setApisWithEndpoints] = useState<APIWithEndpoints[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -46,6 +49,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
       setName(integration.name);
       setSourceApiId(integration.source_api_id);
       setTargetApiId(integration.target_api_id);
+      setProjectId(integration.project_id);
       if (integration.source_endpoint_id) {
         setSourceEndpointIds([integration.source_endpoint_id]);
         // Load additional source endpoints from junction table
@@ -83,8 +87,17 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
           setQueryParams(config.query_params);
         }
       }
+    } else {
+      // Verificar si hay un proyecto temporal (desde menú contextual)
+      const tempProjectId = localStorage.getItem('tempProjectId');
+      if (tempProjectId) {
+        setProjectId(tempProjectId);
+        localStorage.removeItem('tempProjectId');
+      } else if (selectedProject) {
+        setProjectId(selectedProject.id);
+      }
     }
-  }, [integration]);
+  }, [integration, selectedProject]);
 
   const loadEndpoints = async () => {
     const { data: endpoints } = await supabase
@@ -174,6 +187,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         target_endpoint_id: targetEndpointId,
         endpoint_path: targetEndpoint.path,
         method: targetEndpoint.method,
+        project_id: projectId,
         is_active: true,
         transform_config: transformConfig,
         custom_headers: headersObject,
@@ -284,18 +298,41 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Nombre de la Integración
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Mi Integración"
-              required
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Nombre de la Integración
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Mi Integración"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Proyecto
+              </label>
+              <select
+                value={projectId || ''}
+                onChange={(e) => setProjectId(e.target.value || null)}
+                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Sin proyecto</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-400 mt-1">
+                Asigna esta integración a un proyecto para organizarla
+              </p>
+            </div>
           </div>
 
           <div className="bg-slate-900 rounded-xl p-6 space-y-6">
