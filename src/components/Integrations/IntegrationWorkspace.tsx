@@ -34,16 +34,17 @@ export function IntegrationWorkspace() {
   const [showForm, setShowForm] = useState(false);
   const [editingIntegration, setEditingIntegration] = useState<Integration | null>(null);
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationWithAPIs | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ projectId: string | null; x: number; y: number } | null>(null);
 
   useEffect(() => {
     loadData();
   }, [user, externalUser, selectedProject]);
 
   useEffect(() => {
-    const handleClickOutside = () => setContextMenu(null);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    const handleCreateIntegrationEvent = () => {
+      setShowForm(true);
+    };
+    window.addEventListener('create-integration', handleCreateIntegrationEvent);
+    return () => window.removeEventListener('create-integration', handleCreateIntegrationEvent);
   }, []);
 
   const loadData = async () => {

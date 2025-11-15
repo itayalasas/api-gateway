@@ -34,7 +34,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
       </div>
 
       <div className="px-4 pt-4 pb-2 border-b border-slate-800">
-        <ProjectSelector />
+        <ProjectSelector activeView={activeView} />
       </div>
 
       <nav className="flex-1 p-4 space-y-1">

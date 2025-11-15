@@ -4,7 +4,11 @@ import { useProject } from '../../contexts/ProjectContext';
 import { ProjectContextMenu } from './ProjectContextMenu';
 import { ProjectFormModal } from './ProjectFormModal';
 
-export function ProjectSelector() {
+interface ProjectSelectorProps {
+  activeView?: string;
+}
+
+export function ProjectSelector({ activeView }: ProjectSelectorProps) {
   const { projects, selectedProject, setSelectedProject } = useProject();
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -127,6 +131,7 @@ export function ProjectSelector() {
             setEditingProject(id);
             handleCloseContextMenu();
           }}
+          activeView={activeView}
         />
       )}
 

@@ -27,16 +27,17 @@ export function APIList() {
   const [initialLoad, setInitialLoad] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingAPI, setEditingAPI] = useState<API | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ projectId: string | null; x: number; y: number } | null>(null);
 
   useEffect(() => {
     loadAPIs();
   }, [user, externalUser, selectedProject]);
 
   useEffect(() => {
-    const handleClickOutside = () => setContextMenu(null);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    const handleCreateAPIEvent = () => {
+      setShowForm(true);
+    };
+    window.addEventListener('create-api', handleCreateAPIEvent);
+    return () => window.removeEventListener('create-api', handleCreateAPIEvent);
   }, []);
 
   const loadAPIs = async () => {

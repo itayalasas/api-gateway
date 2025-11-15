@@ -1,4 +1,4 @@
-import { Edit, Share2, Power, Trash2 } from 'lucide-react';
+import { Edit, Share2, Power, Trash2, Plus, Globe, Link2 } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useProject } from '../../contexts/ProjectContext';
@@ -8,12 +8,31 @@ interface ProjectContextMenuProps {
   position: { x: number; y: number };
   onClose: () => void;
   onEdit: (id: string) => void;
+  activeView?: string;
 }
 
-export function ProjectContextMenu({ projectId, position, onClose, onEdit }: ProjectContextMenuProps) {
+export function ProjectContextMenu({ projectId, position, onClose, onEdit, activeView }: ProjectContextMenuProps) {
   const { projects, refreshProjects, setSelectedProject, selectedProject } = useProject();
   const [loading, setLoading] = useState(false);
   const project = projects.find(p => p.id === projectId);
+
+  const handleCreateAPI = () => {
+    localStorage.setItem('tempProjectId', projectId);
+    window.dispatchEvent(new CustomEvent('create-api'));
+    onClose();
+  };
+
+  const handleCreateIntegration = () => {
+    localStorage.setItem('tempProjectId', projectId);
+    window.dispatchEvent(new CustomEvent('create-integration'));
+    onClose();
+  };
+
+  const handleCreatePublicAPI = () => {
+    localStorage.setItem('tempProjectId', projectId);
+    window.dispatchEvent(new CustomEvent('create-public-api'));
+    onClose();
+  };
 
   const handleToggleActive = async () => {
     if (!project) return;
@@ -80,6 +99,49 @@ export function ProjectContextMenu({ projectId, position, onClose, onEdit }: Pro
       }}
       onClick={(e) => e.stopPropagation()}
     >
+      {/* Opciones contextuales según la vista activa */}
+      {activeView === 'apis' && (
+        <>
+          <button
+            onClick={handleCreateAPI}
+            disabled={loading}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Crear API</span>
+          </button>
+          <div className="h-px bg-slate-700 my-1" />
+        </>
+      )}
+
+      {activeView === 'integrations' && (
+        <>
+          <button
+            onClick={handleCreateIntegration}
+            disabled={loading}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Crear Integración</span>
+          </button>
+          <div className="h-px bg-slate-700 my-1" />
+        </>
+      )}
+
+      {activeView === 'public-apis' && (
+        <>
+          <button
+            onClick={handleCreatePublicAPI}
+            disabled={loading}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Crear API Pública</span>
+          </button>
+          <div className="h-px bg-slate-700 my-1" />
+        </>
+      )}
+
       <button
         onClick={() => {
           onEdit(projectId);

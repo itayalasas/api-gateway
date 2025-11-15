@@ -19,6 +19,14 @@ export function PublicAPIs() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const handleCreatePublicAPIEvent = () => {
+      setShowForm(true);
+    };
+    window.addEventListener('create-public-api', handleCreatePublicAPIEvent);
+    return () => window.removeEventListener('create-public-api', handleCreatePublicAPIEvent);
+  }, []);
+
   const loadData = async () => {
     setRefreshing(true);
     try {
