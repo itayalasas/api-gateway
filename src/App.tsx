@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ProjectProvider } from './contexts/ProjectContext';
 import { LoginForm } from './components/Auth/LoginForm';
 import { AuthCallback } from './components/Auth/AuthCallback';
 import { Sidebar } from './components/Layout/Sidebar';
@@ -78,7 +79,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ProjectProvider>
+        <AppContent />
+      </ProjectProvider>
     </AuthProvider>
   );
 }

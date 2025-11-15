@@ -3,6 +3,7 @@ import { X, Lock, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProject } from '../../contexts/ProjectContext';
 
 type API = Database['public']['Tables']['apis']['Row'];
 type APIEndpoint = Database['public']['Tables']['api_endpoints']['Row'];
@@ -23,6 +24,7 @@ interface EndpointForm {
 
 export function APIForm({ api, onClose }: APIFormProps) {
   const { user, externalUser } = useAuth();
+  const { selectedProject } = useProject();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [applicationOwner, setApplicationOwner] = useState('');

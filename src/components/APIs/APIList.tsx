@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { APIForm } from './APIForm';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProject } from '../../contexts/ProjectContext';
 
 type API = Database['public']['Tables']['apis']['Row'];
 type APISecurity = Database['public']['Tables']['api_security']['Row'];
@@ -14,6 +15,7 @@ interface APIWithSecurity extends API {
 
 export function APIList() {
   const { user, externalUser } = useAuth();
+  const { selectedProject } = useProject();
   const [apis, setApis] = useState<APIWithSecurity[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -22,7 +24,7 @@ export function APIList() {
 
   useEffect(() => {
     loadAPIs();
-  }, [user, externalUser]);
+  }, [user, externalUser, selectedProject]);
 
   const loadAPIs = async () => {
     const userId = externalUser?.id || user?.id;
@@ -38,10 +40,17 @@ export function APIList() {
     if (initialLoad) {
       setLoading(true);
     }
-    const { data: apisData, error: apisError } = await supabase
+
+    let query = supabase
       .from('apis')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', userId);
+
+    if (selectedProject) {
+      query = query.eq('project_id', selectedProject.id);
+    }
+
+    const { data: apisData, error: apisError } = await query
       .order('created_at', { ascending: false });
 
     console.log('APIList - APIs loaded:', apisData);

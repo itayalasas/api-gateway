@@ -1,5 +1,6 @@
 import { Home, Settings, Link2, Activity, Webhook, LogOut, Sliders, Book, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { ProjectSelector } from '../Projects/ProjectSelector';
 
 interface SidebarProps {
   activeView: string;
@@ -30,6 +31,10 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
             <p className="text-xs text-slate-400">API Integration Platform</p>
           </div>
         </div>
+      </div>
+
+      <div className="px-4 pt-4 pb-2 border-b border-slate-800">
+        <ProjectSelector />
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
