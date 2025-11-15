@@ -5,12 +5,14 @@ import { Database as DB } from '../../lib/database.types';
 import { LogStream } from './LogStream';
 import { LogFiltersComponent, LogFilters } from './LogFilters';
 import { useGatewayUrl } from '../../hooks/useGatewayUrl';
+import { useProject } from '../../contexts/ProjectContext';
 
 type Integration = DB['public']['Tables']['integrations']['Row'];
 type API = DB['public']['Tables']['apis']['Row'];
 type RequestLog = DB['public']['Tables']['request_logs']['Row'];
 
 export function WebhookSetup() {
+  const { selectedProject } = useProject();
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [apis, setApis] = useState<API[]>([]);
   const [selectedIntegration, setSelectedIntegration] = useState<string>('');
@@ -35,7 +37,7 @@ export function WebhookSetup() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedProject]);
 
   useEffect(() => {
     if (selectedIntegration) {
@@ -49,14 +51,20 @@ export function WebhookSetup() {
   }, [selectedIntegration]);
 
   const loadData = async () => {
-    const { data: integrationsData } = await supabase
+    let integrationsQuery = supabase
       .from('integrations')
       .select('*')
       .order('created_at', { ascending: false });
 
-    const { data: apisData } = await supabase
-      .from('apis')
-      .select('*');
+    let apisQuery = supabase.from('apis').select('*');
+
+    if (selectedProject) {
+      integrationsQuery = integrationsQuery.eq('project_id', selectedProject.id);
+      apisQuery = apisQuery.eq('project_id', selectedProject.id);
+    }
+
+    const { data: integrationsData } = await integrationsQuery;
+    const { data: apisData } = await apisQuery;
 
     if (integrationsData) setIntegrations(integrationsData);
     if (apisData) setApis(apisData);

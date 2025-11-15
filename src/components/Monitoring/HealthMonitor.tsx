@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Activity, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
+import { useProject } from '../../contexts/ProjectContext';
 
 type API = Database['public']['Tables']['apis']['Row'];
 type HealthCheck = Database['public']['Tables']['health_checks']['Row'];
@@ -11,6 +12,7 @@ interface APIWithHealth extends API {
 }
 
 export function HealthMonitor() {
+  const { selectedProject } = useProject();
   const [apis, setApis] = useState<APIWithHealth[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -20,17 +22,20 @@ export function HealthMonitor() {
     loadData();
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedProject]);
 
   const loadData = async () => {
     if (initialLoad) {
       setLoading(true);
     }
 
-    const { data: apisData } = await supabase
-      .from('apis')
-      .select('*')
-      .order('name');
+    let apisQuery = supabase.from('apis').select('*').order('name');
+
+    if (selectedProject) {
+      apisQuery = apisQuery.eq('project_id', selectedProject.id);
+    }
+
+    const { data: apisData } = await apisQuery;
 
     if (apisData) {
       const apisWithHealth = await Promise.all(

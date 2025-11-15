@@ -3,6 +3,7 @@ import { Activity, Link2, FileText, TrendingUp, CheckCircle, XCircle, Clock } fr
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProject } from '../../contexts/ProjectContext';
 
 type API = Database['public']['Tables']['apis']['Row'];
 type Integration = Database['public']['Tables']['integrations']['Row'];
@@ -22,6 +23,7 @@ interface DashboardStats {
 
 export function Dashboard() {
   const { user, externalUser } = useAuth();
+  const { selectedProject } = useProject();
   const [stats, setStats] = useState<DashboardStats>({
     totalAPIs: 0,
     activeAPIs: 0,
@@ -42,7 +44,7 @@ export function Dashboard() {
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 10000);
     return () => clearInterval(interval);
-  }, [user, externalUser]);
+  }, [user, externalUser, selectedProject]);
 
   const loadDashboardData = async () => {
     const userId = externalUser?.id || user?.id;
@@ -52,40 +54,61 @@ export function Dashboard() {
       setLoading(true);
     }
 
+    let apisQuery = supabase.from('apis').select('*').eq('user_id', userId);
+    let integrationsQuery = supabase.from('integrations').select('*').eq('user_id', userId);
+
+    if (selectedProject) {
+      apisQuery = apisQuery.eq('project_id', selectedProject.id);
+      integrationsQuery = integrationsQuery.eq('project_id', selectedProject.id);
+    }
+
     const [
       { data: apisData },
       { data: integrationsData },
       { data: logsData },
       { data: healthData }
     ] = await Promise.all([
-      supabase.from('apis').select('*').eq('user_id', userId),
-      supabase.from('integrations').select('*').eq('user_id', userId),
+      apisQuery,
+      integrationsQuery,
       supabase.from('request_logs').select('*').order('created_at', { ascending: false }).limit(100),
       supabase.from('health_checks').select('*').order('checked_at', { ascending: false })
     ]);
 
     if (apisData) setApis(apisData);
     if (integrationsData) setIntegrations(integrationsData);
-    if (logsData) setRecentLogs(logsData.slice(0, 10));
+
+    // Filter logs for integrations in the selected project
+    const integrationIds = integrationsData?.map(i => i.id) || [];
+    const filteredLogs = logsData?.filter(log =>
+      integrationIds.includes(log.integration_id)
+    ) || [];
+
+    setRecentLogs(filteredLogs.slice(0, 10));
 
     const totalAPIs = apisData?.length || 0;
     const activeAPIs = apisData?.filter(api => api.is_active).length || 0;
     const totalIntegrations = integrationsData?.length || 0;
     const activeIntegrations = integrationsData?.filter(int => int.is_active).length || 0;
-    const totalRequests = logsData?.length || 0;
+    const totalRequests = filteredLogs?.length || 0;
 
-    const successfulRequests = logsData?.filter(
+    const successfulRequests = filteredLogs?.filter(
       log => log.response_status && log.response_status >= 200 && log.response_status < 400
     ).length || 0;
     const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
 
-    const logsWithTime = logsData?.filter(log => log.response_time_ms) || [];
+    const logsWithTime = filteredLogs?.filter(log => log.response_time_ms) || [];
     const avgResponseTime = logsWithTime.length > 0
       ? logsWithTime.reduce((sum, log) => sum + (log.response_time_ms || 0), 0) / logsWithTime.length
       : 0;
 
+    // Filter health checks for APIs in the selected project
+    const apiIds = apisData?.map(a => a.id) || [];
+    const filteredHealthData = healthData?.filter(health =>
+      apiIds.includes(health.api_id)
+    ) || [];
+
     const latestHealthPerAPI = new Map<string, HealthCheck>();
-    healthData?.forEach(health => {
+    filteredHealthData.forEach(health => {
       if (!latestHealthPerAPI.has(health.api_id)) {
         latestHealthPerAPI.set(health.api_id, health);
       }
