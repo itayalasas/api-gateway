@@ -38,7 +38,12 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
     if (editingPublicAPI) {
       setName(editingPublicAPI.name);
       setDescription(editingPublicAPI.description || '');
-      setTargetApiId(editingPublicAPI.target_api_id || '');
+      // Add prefix to match select values
+      const targetId = editingPublicAPI.target_api_id;
+      if (targetId) {
+        // Check if the target is in the APIs list to add the correct prefix
+        setTargetApiId(`api-${targetId}`);
+      }
       setProjectId(editingPublicAPI.project_id || '');
     } else {
       const tempProjectId = localStorage.getItem('tempProjectId');
@@ -70,12 +75,15 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
     setLoading(true);
     try {
       if (editingPublicAPI) {
+        // Remove prefix from targetApiId if present
+        const cleanTargetId = targetApiId.replace(/^(api-|int-)/, '');
+
         const { error: updateError } = await supabase
           .from('integrations')
           .update({
             name: name.trim(),
             description: description.trim(),
-            target_api_id: targetApiId,
+            target_api_id: cleanTargetId,
             project_id: projectId || null,
             updated_at: new Date().toISOString()
           })
