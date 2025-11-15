@@ -26,6 +26,7 @@ export function PublicAPIs() {
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingPublicAPI, setEditingPublicAPI] = useState<Integration | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const { success, error: showError, ToastContainer } = useToast();
@@ -95,6 +96,7 @@ export function PublicAPIs() {
     description: string;
     targetApiId: string;
     sourceType: 'api' | 'integration';
+    projectId?: string;
   }) => {
     const apiKey = generateApiKey();
 
@@ -154,6 +156,7 @@ export function PublicAPIs() {
       name: data.name,
       description: data.description || '',
       user_id: userId,
+      project_id: data.projectId || null,
       source_api_id: targetApiId,
       target_api_id: targetApiId,
       target_endpoint_id: targetEndpointId,
@@ -214,6 +217,16 @@ export function PublicAPIs() {
 
     success(currentStatus ? 'API desactivada correctamente' : 'API activada correctamente');
     await loadData();
+  };
+
+  const handleEdit = (publicAPI: Integration) => {
+    setEditingPublicAPI(publicAPI);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingPublicAPI(null);
   };
 
   const getGroupedPublicAPIs = (): GroupedPublicAPIs[] => {
@@ -323,8 +336,9 @@ export function PublicAPIs() {
         <PublicAPIForm
           apis={apis}
           publicAPIs={publicAPIs}
+          editingPublicAPI={editingPublicAPI}
           onSubmit={handleCreatePublicAPI}
-          onCancel={() => setShowForm(false)}
+          onCancel={handleCloseForm}
         />
       )}
 
@@ -402,6 +416,7 @@ export function PublicAPIs() {
                   apis={apis}
                   onDelete={handleDeleteClick}
                   onToggleActive={handleToggleActive}
+                  onEdit={handleEdit}
                 />
               </div>
             </div>

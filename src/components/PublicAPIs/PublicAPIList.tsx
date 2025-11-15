@@ -1,4 +1,4 @@
-import { Globe, Copy, CheckCircle, Trash2, Power, PowerOff, ExternalLink, Activity, ChevronDown, ChevronUp } from 'lucide-react';
+import { Globe, Copy, CheckCircle, Trash2, Power, PowerOff, ExternalLink, Activity, ChevronDown, ChevronUp, Edit } from 'lucide-react';
 import { Database as DB } from '../../lib/database.types';
 import { useState, useEffect } from 'react';
 import { useGatewayUrl } from '../../hooks/useGatewayUrl';
@@ -13,12 +13,13 @@ interface PublicAPIListProps {
   apis: API[];
   onDelete: (id: string, name: string) => void;
   onToggleActive: (id: string, currentStatus: boolean) => void;
+  onEdit?: (publicAPI: Integration) => void;
   onViewLogs?: (integrationId: string) => void;
 }
 
 type RequestLog = DB['public']['Tables']['request_logs']['Row'];
 
-export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onViewLogs }: PublicAPIListProps) {
+export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEdit, onViewLogs }: PublicAPIListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedType, setCopiedType] = useState<'url' | 'key' | null>(null);
   const [expandedLogs, setExpandedLogs] = useState<string | null>(null);
@@ -176,6 +177,15 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onVi
                       <Activity className="w-4 h-4" />
                     )}
                   </button>
+                  {onEdit && (
+                    <button
+                      onClick={() => onEdit(publicAPI)}
+                      className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 p-2 rounded-lg transition-colors"
+                      title="Editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => onToggleActive(publicAPI.id, publicAPI.is_active)}
                     className={`p-2 rounded-lg transition-colors ${

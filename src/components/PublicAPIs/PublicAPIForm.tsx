@@ -1,27 +1,53 @@
-import { useState } from 'react';
-import { Save, X, AlertCircle, Globe, Layers } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, X, AlertCircle, Globe, Layers, FolderOpen } from 'lucide-react';
 import { Database as DB } from '../../lib/database.types';
+import { useProject } from '../../contexts/ProjectContext';
+import { supabase } from '../../lib/supabase';
+import { useToast } from '../../hooks/useToast';
 
 type API = DB['public']['Tables']['apis']['Row'];
+type Integration = DB['public']['Tables']['integrations']['Row'];
+type Project = DB['public']['Tables']['projects']['Row'];
 
 interface PublicAPIFormProps {
   apis: API[];
+  publicAPIs?: Integration[];
+  editingPublicAPI?: Integration | null;
   onSubmit: (data: {
     name: string;
     description: string;
     targetApiId: string;
     sourceType: 'api' | 'integration';
+    projectId?: string;
   }) => Promise<void>;
   onCancel: () => void;
 }
 
-export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) {
+export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, onCancel }: PublicAPIFormProps) {
+  const { projects } = useProject();
+  const { success, error: showError, ToastContainer } = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [targetApiId, setTargetApiId] = useState('');
+  const [projectId, setProjectId] = useState<string>('');
   const [sourceType, setSourceType] = useState<'api' | 'integration'>('api');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (editingPublicAPI) {
+      setName(editingPublicAPI.name);
+      setDescription(editingPublicAPI.description || '');
+      setTargetApiId(editingPublicAPI.target_api_id || '');
+      setProjectId(editingPublicAPI.project_id || '');
+    } else {
+      const tempProjectId = localStorage.getItem('tempProjectId');
+      if (tempProjectId) {
+        setProjectId(tempProjectId);
+        localStorage.removeItem('tempProjectId');
+      }
+    }
+  }, [editingPublicAPI]);
 
   const publishedAPIs = apis.filter(api => api.type === 'published' && api.is_active);
   const externalAPIs = apis.filter(api => api.type === 'external' && api.is_active);
@@ -43,14 +69,35 @@ export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) 
 
     setLoading(true);
     try {
-      await onSubmit({
-        name: name.trim(),
-        description: description.trim(),
-        targetApiId,
-        sourceType
-      });
+      if (editingPublicAPI) {
+        const { error: updateError } = await supabase
+          .from('integrations')
+          .update({
+            name: name.trim(),
+            description: description.trim(),
+            target_api_id: targetApiId,
+            project_id: projectId || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingPublicAPI.id);
+
+        if (updateError) throw updateError;
+        success('API pública actualizada correctamente');
+        onCancel();
+        window.location.reload();
+      } else {
+        await onSubmit({
+          name: name.trim(),
+          description: description.trim(),
+          targetApiId,
+          sourceType,
+          projectId: projectId || undefined
+        });
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la API pública');
+      const errorMsg = err instanceof Error ? err.message : (editingPublicAPI ? 'Error al actualizar la API pública' : 'Error al crear la API pública');
+      setError(errorMsg);
+      showError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -63,10 +110,16 @@ export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) 
           <Globe className="w-5 h-5 text-blue-400" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-white">Nueva API Pública</h3>
-          <p className="text-sm text-slate-400">Expón una API interna para consumo de terceros</p>
+          <h3 className="text-lg font-semibold text-white">
+            {editingPublicAPI ? 'Editar API Pública' : 'Nueva API Pública'}
+          </h3>
+          <p className="text-sm text-slate-400">
+            {editingPublicAPI ? 'Actualiza la configuración de tu API pública' : 'Expón una API interna para consumo de terceros'}
+          </p>
         </div>
       </div>
+
+      <ToastContainer />
 
       {!hasOptions && (
         <div className="bg-yellow-600/10 border border-yellow-600/30 rounded-lg p-4 mb-6">
@@ -114,6 +167,28 @@ export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) 
           />
           <p className="text-xs text-slate-500 mt-1">
             Descripción opcional del propósito de esta API
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Proyecto
+          </label>
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+            disabled={loading}
+          >
+            <option value="">Sin proyecto</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-slate-500 mt-1">
+            Organiza esta API en un proyecto específico
           </p>
         </div>
 
@@ -181,12 +256,12 @@ export function PublicAPIForm({ apis, onSubmit, onCancel }: PublicAPIFormProps) 
             {loading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Creando...
+                {editingPublicAPI ? 'Actualizando...' : 'Creando...'}
               </>
             ) : (
               <>
                 <Save className="w-5 h-5" />
-                Crear API Pública
+                {editingPublicAPI ? 'Actualizar API Pública' : 'Crear API Pública'}
               </>
             )}
           </button>
