@@ -59,11 +59,8 @@ export function IntegrationWorkspace() {
       setLoading(true);
     }
 
-    // Load APIs with project filter
-    let apisQuery = supabase.from('apis').select('*').eq('user_id', userId);
-    if (selectedProject) {
-      apisQuery = apisQuery.eq('project_id', selectedProject.id);
-    }
+    // Load ALL APIs from ALL projects (to allow cross-project integrations)
+    const apisQuery = supabase.from('apis').select('*').eq('user_id', userId);
 
     // Load integrations with project filter
     let integrationsQuery = supabase.from('integrations').select('*').eq('user_id', userId);
