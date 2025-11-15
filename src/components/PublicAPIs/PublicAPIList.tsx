@@ -1,7 +1,9 @@
-import { Globe, Copy, CheckCircle, Trash2, Power, PowerOff, ExternalLink } from 'lucide-react';
+import { Globe, Copy, CheckCircle, Trash2, Power, PowerOff, ExternalLink, Activity, ChevronDown, ChevronUp } from 'lucide-react';
 import { Database as DB } from '../../lib/database.types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGatewayUrl } from '../../hooks/useGatewayUrl';
+import { supabase } from '../../lib/supabase';
+import { LogStream } from '../Webhooks/LogStream';
 
 type Integration = DB['public']['Tables']['integrations']['Row'];
 type API = DB['public']['Tables']['apis']['Row'];
@@ -11,11 +13,17 @@ interface PublicAPIListProps {
   apis: API[];
   onDelete: (id: string) => void;
   onToggleActive: (id: string, currentStatus: boolean) => void;
+  onViewLogs?: (integrationId: string) => void;
 }
 
-export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive }: PublicAPIListProps) {
+type RequestLog = DB['public']['Tables']['request_logs']['Row'];
+
+export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onViewLogs }: PublicAPIListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedType, setCopiedType] = useState<'url' | 'key' | null>(null);
+  const [expandedLogs, setExpandedLogs] = useState<string | null>(null);
+  const [logs, setLogs] = useState<Record<string, RequestLog[]>>({});
+  const [loadingLogs, setLoadingLogs] = useState<string | null>(null);
   const { getGatewayUrl } = useGatewayUrl();
 
   const copyToClipboard = (text: string, id: string, type: 'url' | 'key') => {
@@ -31,6 +39,68 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive }: Pu
   const getTargetAPI = (targetId: string | null) => {
     return apis.find(api => api.id === targetId);
   };
+
+  const toggleLogs = async (integrationId: string) => {
+    if (expandedLogs === integrationId) {
+      setExpandedLogs(null);
+      return;
+    }
+
+    setExpandedLogs(integrationId);
+
+    if (!logs[integrationId]) {
+      setLoadingLogs(integrationId);
+      await loadLogsForIntegration(integrationId);
+      setLoadingLogs(null);
+    }
+  };
+
+  const loadLogsForIntegration = async (integrationId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('request_logs')
+        .select('*')
+        .eq('integration_id', integrationId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      setLogs(prev => ({
+        ...prev,
+        [integrationId]: data || []
+      }));
+    } catch (error) {
+      console.error('Error loading logs:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (expandedLogs) {
+      const subscription = supabase
+        .channel(`logs-${expandedLogs}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'request_logs',
+            filter: `integration_id=eq.${expandedLogs}`
+          },
+          (payload) => {
+            setLogs(prev => ({
+              ...prev,
+              [expandedLogs]: [payload.new as RequestLog, ...(prev[expandedLogs] || [])].slice(0, 20)
+            }));
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [expandedLogs]);
 
   if (publicAPIs.length === 0) {
     return (
@@ -93,6 +163,17 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive }: Pu
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleLogs(publicAPI.id)}
+                    className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 p-2 rounded-lg transition-colors"
+                    title="Ver Logs"
+                  >
+                    {expandedLogs === publicAPI.id ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <Activity className="w-4 h-4" />
+                    )}
+                  </button>
                   <button
                     onClick={() => onToggleActive(publicAPI.id, publicAPI.is_active)}
                     className={`p-2 rounded-lg transition-colors ${
@@ -204,6 +285,33 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive }: Pu
                 </div>
               </div>
             </div>
+
+            {expandedLogs === publicAPI.id && (
+              <div className="border-t border-slate-700 p-6 bg-slate-900/30">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-blue-400" />
+                    Request Logs
+                  </h4>
+                  {loadingLogs === publicAPI.id && (
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  )}
+                </div>
+                {logs[publicAPI.id] && logs[publicAPI.id].length > 0 ? (
+                  <LogStream
+                    logs={logs[publicAPI.id]}
+                    onToggleExpand={(logId) => {}}
+                    expandedLog={null}
+                  />
+                ) : (
+                  <div className="text-center py-8 text-slate-500">
+                    <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">No hay logs disponibles</p>
+                    <p className="text-xs mt-1">Los requests a esta API aparecerán aquí</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
