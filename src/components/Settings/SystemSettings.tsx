@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { Settings, Save, CheckCircle, AlertCircle, Info, Folder } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useProject } from '../../contexts/ProjectContext';
 
 export function SystemSettings() {
+  const { selectedProject } = useProject();
   const [gatewayDomain, setGatewayDomain] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -148,10 +150,55 @@ export function SystemSettings() {
         </div>
       </div>
 
+      {selectedProject && (
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedProject.color }}>
+              <Folder className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Configuración del Proyecto</h3>
+              <p className="text-sm text-slate-400">{selectedProject.name}</p>
+            </div>
+          </div>
+
+          {selectedProject.gateway_domain ? (
+            <div className="bg-slate-900 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                <p className="text-sm font-medium text-white">Dominio Personalizado Configurado</p>
+              </div>
+              <p className="text-xs text-slate-400 mb-3">
+                Este proyecto usa su propio dominio de gateway:
+              </p>
+              <code className="block bg-slate-950 px-4 py-3 rounded text-green-400 text-sm font-mono break-all">
+                {selectedProject.gateway_domain}
+              </code>
+              <p className="text-xs text-slate-500 mt-3">
+                Las URLs de las integraciones de este proyecto usarán este dominio en lugar del dominio del sistema.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-slate-900 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="w-5 h-5 text-blue-400" />
+                <p className="text-sm font-medium text-white">Usando Dominio del Sistema</p>
+              </div>
+              <p className="text-xs text-slate-400 mb-3">
+                Este proyecto usa el dominio del sistema. Para configurar un dominio personalizado, edita el proyecto.
+              </p>
+              <code className="block bg-slate-950 px-4 py-3 rounded text-blue-400 text-sm font-mono break-all">
+                {gatewayDomain || 'Dominio del sistema no configurado'}
+              </code>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
         <h3 className="text-lg font-semibold text-white mb-4">Vista Previa</h3>
         <div className="bg-slate-900 rounded-lg p-4">
-          <p className="text-xs text-slate-400 mb-2">Ejemplo de URL generada:</p>
+          <p className="text-xs text-slate-400 mb-2">Ejemplo de URL generada (dominio del sistema):</p>
           <code className="block bg-slate-950 px-4 py-3 rounded text-blue-400 text-sm font-mono break-all">
             https://{gatewayDomain || 'tu-dominio.com'}/functions/v1/api-gateway/{'<integration-id>'}
           </code>

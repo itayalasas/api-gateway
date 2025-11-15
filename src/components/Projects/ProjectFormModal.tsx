@@ -20,6 +20,7 @@ export function ProjectFormModal({ projectId, onClose }: ProjectFormModalProps) 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState(COLORS[0]);
+  const [gatewayDomain, setGatewayDomain] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -31,6 +32,7 @@ export function ProjectFormModal({ projectId, onClose }: ProjectFormModalProps) 
       setName(project.name);
       setDescription(project.description || '');
       setColor(project.color);
+      setGatewayDomain(project.gateway_domain || '');
     }
   }, [project]);
 
@@ -58,6 +60,7 @@ export function ProjectFormModal({ projectId, onClose }: ProjectFormModalProps) 
             name: name.trim(),
             description: description.trim(),
             color,
+            gateway_domain: gatewayDomain.trim() || null,
           })
           .eq('id', projectId);
 
@@ -69,6 +72,7 @@ export function ProjectFormModal({ projectId, onClose }: ProjectFormModalProps) 
             name: name.trim(),
             description: description.trim(),
             color,
+            gateway_domain: gatewayDomain.trim() || null,
             user_id: userId,
           });
 
@@ -160,6 +164,23 @@ export function ProjectFormModal({ projectId, onClose }: ProjectFormModalProps) 
                 />
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Dominio del Gateway (Opcional)
+            </label>
+            <input
+              type="text"
+              value={gatewayDomain}
+              onChange={(e) => setGatewayDomain(e.target.value)}
+              placeholder="ej. api.midominio.com"
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              disabled={loading}
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Si se deja vacío, se usará el dominio del sistema. Las URLs generadas usarán este dominio.
+            </p>
           </div>
 
           {error && (
