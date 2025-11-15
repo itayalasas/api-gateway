@@ -26,6 +26,20 @@ interface WebhookConfig {
   merge_strategy?: 'combine' | 'replace' | 'db_only';
 }
 
+interface QueryParamConfig {
+  name: string;
+  source: 'url_query' | 'body' | 'header';
+  path: string;
+  required?: boolean;
+  default?: any;
+}
+
+interface TransformConfig extends WebhookConfig {
+  query_params?: QueryParamConfig[];
+  proxy_mode?: 'direct' | 'post_process';
+  post_process_api_id?: string;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -123,6 +137,7 @@ Deno.serve(async (req: Request) => {
 
     const integrationType = integration.integration_type || 'api_to_api';
     const webhookConfig = integration.webhook_config as WebhookConfig || {};
+    const transformConfig = integration.transform_config as TransformConfig || {};
 
     let dataToSend = parsedBody || {};
     let dbResults = null;
@@ -241,7 +256,47 @@ Deno.serve(async (req: Request) => {
     }
 
     let targetPath = targetEndpoint.path;
+    const queryParams = new URLSearchParams();
 
+    // Handle query params from transform_config
+    if (transformConfig.query_params && Array.isArray(transformConfig.query_params)) {
+      for (const paramConfig of transformConfig.query_params) {
+        let value: any = paramConfig.default;
+
+        if (paramConfig.source === 'url_query') {
+          value = url.searchParams.get(paramConfig.path) || value;
+        } else if (paramConfig.source === 'body') {
+          value = getNestedValue(parsedBody, paramConfig.path) || value;
+        } else if (paramConfig.source === 'header') {
+          value = req.headers.get(paramConfig.path) || value;
+        }
+
+        if (value !== null && value !== undefined) {
+          queryParams.set(paramConfig.name, String(value));
+        } else if (paramConfig.required) {
+          await logRequest(supabase, {
+            integration_id: integrationId,
+            request_id: requestId,
+            method: req.method,
+            path: url.pathname,
+            headers: Object.fromEntries(req.headers.entries()),
+            body: parsedBody,
+            response_status: 400,
+            response_body: { error: `Required query parameter '${paramConfig.name}' is missing` },
+            response_time_ms: Date.now() - startTime,
+            error_message: `Missing required query parameter: ${paramConfig.name}`,
+            created_at: new Date().toISOString()
+          });
+
+          return new Response(
+            JSON.stringify({ error: `Required query parameter '${paramConfig.name}' is missing` }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    }
+
+    // Handle path params
     if (integration.path_params && Array.isArray(integration.path_params)) {
       const pathParams = integration.path_params as Array<{ param: string; source: string; path: string; format?: string }>;
 
@@ -268,7 +323,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const targetUrl = `${targetApi.base_url}${targetPath}`;
+    // Build target URL with query params
+    const queryString = queryParams.toString();
+    const targetUrl = `${targetApi.base_url}${targetPath}${queryString ? '?' + queryString : ''}`;
     const targetHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -368,6 +425,100 @@ Deno.serve(async (req: Request) => {
         responseBody = responseText;
       }
 
+      // Check if we need to post-process
+      const proxyMode = integration.proxy_mode || 'direct';
+      if (proxyMode === 'post_process' && integration.post_process_api_id) {
+        try {
+          // Get post-process API configuration
+          const { data: postProcessApi } = await supabase
+            .from('apis')
+            .select('*, api_endpoints(*), api_security(*)')
+            .eq('id', integration.post_process_api_id)
+            .maybeSingle();
+
+          if (postProcessApi && postProcessApi.api_endpoints && postProcessApi.api_endpoints.length > 0) {
+            const postEndpoint = postProcessApi.api_endpoints[0];
+            const postSecurity = postProcessApi.api_security?.[0];
+            const postUrl = `${postProcessApi.base_url}${postEndpoint.path}`;
+
+            const postHeaders: Record<string, string> = {
+              'Content-Type': 'application/json',
+            };
+
+            // Add authentication for post-process API
+            if (postSecurity && postSecurity.auth_type !== 'none') {
+              const authConfig = postSecurity.auth_config as any;
+              switch (postSecurity.auth_type) {
+                case 'api_key':
+                  if (authConfig.headerName && authConfig.apiKey) {
+                    postHeaders[authConfig.headerName] = authConfig.apiKey;
+                  }
+                  break;
+                case 'bearer_token':
+                  if (authConfig.token) {
+                    postHeaders['Authorization'] = `Bearer ${authConfig.token}`;
+                  }
+                  break;
+                case 'basic_auth':
+                  if (authConfig.username && authConfig.password) {
+                    const credentials = btoa(`${authConfig.username}:${authConfig.password}`);
+                    postHeaders['Authorization'] = `Basic ${credentials}`;
+                  }
+                  break;
+              }
+            }
+
+            // Forward the response from target API to post-process API
+            const postResponse = await fetch(postUrl, {
+              method: postEndpoint.method,
+              headers: postHeaders,
+              body: JSON.stringify({
+                original_request: parsedBody,
+                target_response: responseBody
+              })
+            });
+
+            const postResponseText = await postResponse.text();
+            let postResponseBody;
+            try {
+              postResponseBody = JSON.parse(postResponseText);
+            } catch {
+              postResponseBody = postResponseText;
+            }
+
+            const responseTime = Date.now() - startTime;
+
+            await logRequest(supabase, {
+              integration_id: integrationId,
+              request_id: requestId,
+              method: req.method,
+              path: targetEndpoint.path,
+              headers: Object.fromEntries(req.headers.entries()),
+              body: parsedBody,
+              response_status: postResponse.status,
+              response_body: postResponseBody,
+              response_time_ms: responseTime,
+              error_message: null,
+              created_at: new Date().toISOString()
+            });
+
+            return new Response(postResponseText, {
+              status: postResponse.status,
+              headers: {
+                ...corsHeaders,
+                'Content-Type': postResponse.headers.get('Content-Type') || 'application/json',
+                'X-Request-Id': requestId,
+                'X-Response-Time': `${responseTime}ms`,
+                'X-Proxy-Mode': 'post_process',
+              },
+            });
+          }
+        } catch (postError) {
+          console.error('Post-process error:', postError);
+          // Fall through to return original response
+        }
+      }
+
       const responseTime = Date.now() - startTime;
 
       await logRequest(supabase, {
@@ -391,6 +542,7 @@ Deno.serve(async (req: Request) => {
           'Content-Type': targetResponse.headers.get('Content-Type') || 'application/json',
           'X-Request-Id': requestId,
           'X-Response-Time': `${responseTime}ms`,
+          'X-Proxy-Mode': proxyMode,
         },
       });
 

@@ -3,6 +3,8 @@ import { X, ArrowRight, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { useAuth } from '../../contexts/AuthContext';
+import { QueryParamsConfig } from './QueryParamsConfig';
+import { ProxyModeConfig } from './ProxyModeConfig';
 
 type Integration = Database['public']['Tables']['integrations']['Row'];
 type API = Database['public']['Tables']['apis']['Row'];
@@ -31,6 +33,9 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
   const [customHeaders, setCustomHeaders] = useState<Array<{ key: string; value: string }>>([{ key: '', value: '' }]);
   const [forwardHeaders, setForwardHeaders] = useState<string[]>(['']);
   const [pathParams, setPathParams] = useState<Array<{ param: string; source: string; path: string }>>([]);
+  const [queryParams, setQueryParams] = useState<Array<{ name: string; source: 'url_query' | 'body' | 'header'; path: string; required?: boolean; default?: any }>>([]);
+  const [proxyMode, setProxyMode] = useState<'direct' | 'post_process'>('direct');
+  const [postProcessApiId, setPostProcessApiId] = useState('');
 
   useEffect(() => {
     loadEndpoints();
@@ -62,6 +67,21 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
 
       if (integration.path_params && Array.isArray(integration.path_params)) {
         setPathParams(integration.path_params);
+      }
+
+      if (integration.proxy_mode) {
+        setProxyMode(integration.proxy_mode as 'direct' | 'post_process');
+      }
+
+      if (integration.post_process_api_id) {
+        setPostProcessApiId(integration.post_process_api_id);
+      }
+
+      if (integration.transform_config && typeof integration.transform_config === 'object') {
+        const config = integration.transform_config as any;
+        if (config.query_params && Array.isArray(config.query_params)) {
+          setQueryParams(config.query_params);
+        }
       }
     }
   }, [integration]);
@@ -131,6 +151,20 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
           format: p.format || ':'
         }));
 
+      const queryParamsConfig = queryParams
+        .filter(qp => qp.name.trim() !== '' && qp.path.trim() !== '')
+        .map(qp => ({
+          name: qp.name,
+          source: qp.source,
+          path: qp.path,
+          required: qp.required || false,
+          default: qp.default || null
+        }));
+
+      const transformConfig = queryParamsConfig.length > 0 ? {
+        query_params: queryParamsConfig
+      } : {};
+
       const integrationData = {
         user_id: userId,
         name,
@@ -141,10 +175,12 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         endpoint_path: targetEndpoint.path,
         method: targetEndpoint.method,
         is_active: true,
-        transform_config: {},
+        transform_config: transformConfig,
         custom_headers: headersObject,
         forward_headers: forwardHeadersList,
-        path_params: pathParamsConfig
+        path_params: pathParamsConfig,
+        proxy_mode: proxyMode,
+        post_process_api_id: proxyMode === 'post_process' && postProcessApiId ? postProcessApiId : null
       };
 
       let integrationId: string;
@@ -697,6 +733,37 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                 ))}
               </div>
             </div>
+          )}
+
+          {selectedSourceEndpoints.length > 0 && selectedTargetEndpoint && (
+            <>
+              <div className="bg-slate-900 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <span className="bg-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">6</span>
+                  Query Parameters (Opcional)
+                </h3>
+                <QueryParamsConfig
+                  queryParams={queryParams}
+                  onChange={setQueryParams}
+                />
+              </div>
+
+              <div className="bg-slate-900 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <span className="bg-cyan-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">7</span>
+                  Modo de Proxy (Opcional)
+                </h3>
+                <ProxyModeConfig
+                  proxyMode={proxyMode}
+                  postProcessApiId={postProcessApiId}
+                  apis={apis}
+                  onChange={(mode, apiId) => {
+                    setProxyMode(mode);
+                    setPostProcessApiId(apiId);
+                  }}
+                />
+              </div>
+            </>
           )}
 
           {selectedSourceEndpoints.length > 0 && selectedTargetEndpoint && (
