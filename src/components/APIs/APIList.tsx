@@ -172,32 +172,16 @@ export function APIList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white">APIs</h2>
-          <p className="text-slate-400 mt-1">Gestiona tus configuraciones de API</p>
-        </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add API
-        </button>
+      <div>
+        <h2 className="text-2xl font-bold text-white">APIs</h2>
+        <p className="text-slate-400 mt-1">Gestiona tus configuraciones de API por proyecto</p>
       </div>
 
       {groupedAPIs.length === 0 ? (
         <div className="text-center py-12 bg-slate-800 rounded-xl border border-slate-700">
           <Globe className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-white mb-2">No APIs yet</h3>
-          <p className="text-slate-400 mb-4">Start by adding your first API configuration</p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl inline-flex items-center gap-2 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Add API
-          </button>
+          <h3 className="text-lg font-semibold text-white mb-2">No hay APIs</h3>
+          <p className="text-slate-400">Usa el botón "Crear API" en cada proyecto para agregar APIs</p>
         </div>
       ) : (
         <div className="space-y-8">

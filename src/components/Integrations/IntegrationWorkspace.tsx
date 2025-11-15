@@ -208,19 +208,9 @@ export function IntegrationWorkspace() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Integraciones</h2>
-          <p className="text-slate-400 mt-1">Conecta y gestiona integraciones entre endpoints</p>
-        </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors"
-          disabled={apis.length < 2}
-        >
-          <Plus className="w-5 h-5" />
-          Nueva Integración
-        </button>
+      <div>
+        <h2 className="text-2xl font-bold text-white">Integraciones</h2>
+        <p className="text-slate-400 mt-1">Conecta y gestiona integraciones entre endpoints por proyecto</p>
       </div>
 
       {apis.length < 2 && (
@@ -235,14 +225,7 @@ export function IntegrationWorkspace() {
         <div className="text-center py-16 bg-slate-800/30 rounded-xl border border-slate-700/50 border-dashed">
           <ArrowRight className="w-12 h-12 text-slate-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-white mb-2">No hay integraciones</h3>
-          <p className="text-slate-400 mb-6">Crea tu primera integración para conectar APIs</p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg inline-flex items-center gap-2 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Nueva Integración
-          </button>
+          <p className="text-slate-400">Usa el botón "Crear Integración" en cada proyecto para agregar integraciones</p>
         </div>
       ) : (
         <div className="space-y-8">
