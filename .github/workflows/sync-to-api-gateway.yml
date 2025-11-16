@@ -23,15 +23,15 @@ jobs:
 
       - name: Add destination remote (api-gateway)
         env:
-          PAT: ${{ secrets.HCM_PRO_PAT_NEW }}
+          PAT: ${{ secrets.API_GATEWAY_PAT }}
         run: |
-          git remote add dest https://x-access-token:${{ secrets.HCM_PRO_PAT_NEW }}@github.com/itayalasas/api-gateway.git
+          git remote add dest https://x-access-token:${{ secrets.API_GATEWAY_PAT }}@github.com/itayalasas/api-gateway.git
           echo "==== Remotes configurados ===="
           git remote -v
 
       - name: Push main branch to api-gateway
         env:
-          PAT: ${{ secrets.HCM_PRO_PAT_NEW }}
+          PAT: ${{ secrets.API_GATEWAY_PAT }}
         run: |
           echo "Syncing main -> itayalasas/api-gateway..."
           git push dest main:main
