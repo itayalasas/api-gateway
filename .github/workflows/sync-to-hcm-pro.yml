@@ -1,0 +1,37 @@
+name: Sync to hcm-pro
+
+on:
+  push:
+    branches:
+      - main   # solo cuando haces push a main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # historial completo
+          persist-credentials: false  # MUY IMPORTANTE: no usar github-actions[bot]
+
+      - name: Configure Git
+        run: |
+          git config user.name "Sync Bot"
+          git config user.email "sync-bot@users.noreply.github.com"
+
+      - name: Add destination remote (api-gateway)
+        env:
+          PAT: ${{ secrets.HCM_PRO_PAT_NEW }}
+        run: |
+          git remote add dest https://x-access-token:${{ secrets.HCM_PRO_PAT_NEW }}@github.com/itayalasas/api-gateway.git
+          echo "==== Remotes configurados ===="
+          git remote -v
+
+      - name: Push main branch to hcm-pro
+        env:
+          PAT: ${{ secrets.HCM_PRO_PAT_NEW }}
+        run: |
+          echo "Syncing main -> itayalasas/api-gateway..."
+          git push dest main:main
