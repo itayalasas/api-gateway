@@ -485,6 +485,18 @@ Deno.serve(async (req: Request) => {
         responseBody = responseText;
       }
 
+      // Apply response mapping if configured
+      if (integration.response_mapping) {
+        const mappingConfig = integration.response_mapping as any;
+        if (mappingConfig.enabled) {
+          try {
+            responseBody = applyResponseMapping(responseBody, mappingConfig);
+          } catch (mappingError) {
+            console.error('Response mapping error:', mappingError);
+          }
+        }
+      }
+
       // Check if we need to post-process
       const proxyMode = integration.proxy_mode || 'direct';
       if (proxyMode === 'post_process' && integration.post_process_api_id) {
@@ -735,4 +747,76 @@ async function logRequest(supabase: any, logData: any) {
   } catch (error) {
     console.error('Failed to log request:', error);
   }
+}
+
+function applyResponseMapping(responseData: any, mappingConfig: any): any {
+  const { template, transformations } = mappingConfig;
+
+  if (!template) {
+    return responseData;
+  }
+
+  const isArray = Array.isArray(responseData);
+  const dataArray = isArray ? responseData : [responseData];
+  const results = [];
+
+  for (const item of dataArray) {
+    let mappedItem = processTemplate(template, item);
+
+    if (transformations && Array.isArray(transformations)) {
+      for (const transform of transformations) {
+        const value = evaluateExpression(transform.expression, item);
+        setNestedValue(mappedItem, transform.field, value);
+      }
+    }
+
+    results.push(mappedItem);
+  }
+
+  return isArray ? results : results[0];
+}
+
+function processTemplate(template: any, data: any): any {
+  if (typeof template === 'string') {
+    return evaluateExpression(template, data);
+  }
+
+  if (Array.isArray(template)) {
+    return template.map(item => processTemplate(item, data));
+  }
+
+  if (typeof template === 'object' && template !== null) {
+    const result: any = {};
+    for (const [key, value] of Object.entries(template)) {
+      result[key] = processTemplate(value, data);
+    }
+    return result;
+  }
+
+  return template;
+}
+
+function evaluateExpression(expression: string, data: any): any {
+  if (typeof expression !== 'string') {
+    return expression;
+  }
+
+  const regex = /\$\{response\.([^}]+)\}/g;
+  let result = expression;
+  let hasReplacement = false;
+
+  result = result.replace(regex, (match, path) => {
+    hasReplacement = true;
+    const value = getNestedValue(data, path);
+    return value !== undefined ? (typeof value === 'object' ? JSON.stringify(value) : String(value)) : '';
+  });
+
+  if (hasReplacement && result === expression.replace(regex, '').trim()) {
+    const singleMatch = expression.match(/^\$\{response\.([^}]+)\}$/);
+    if (singleMatch) {
+      return getNestedValue(data, singleMatch[1]);
+    }
+  }
+
+  return result;
 }

@@ -140,6 +140,7 @@ export function PublicAPIs() {
     targetApiId: string;
     sourceType: 'api' | 'integration';
     projectId?: string;
+    responseMapping?: any;
   }) => {
     const apiKey = generateApiKey();
 
@@ -208,6 +209,7 @@ export function PublicAPIs() {
       integration_type: 'public_proxy',
       api_key: apiKey,
       is_active: true,
+      response_mapping: data.responseMapping || null,
       transform_config: {
         proxy_type: 'public',
         auto_forward: true,

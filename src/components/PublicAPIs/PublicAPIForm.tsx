@@ -4,6 +4,7 @@ import { Database as DB } from '../../lib/database.types';
 import { useProject } from '../../contexts/ProjectContext';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
+import { ResponseMappingConfig } from './ResponseMappingConfig';
 
 type API = DB['public']['Tables']['apis']['Row'];
 type Integration = DB['public']['Tables']['integrations']['Row'];
@@ -19,6 +20,7 @@ interface PublicAPIFormProps {
     targetApiId: string;
     sourceType: 'api' | 'integration';
     projectId?: string;
+    responseMapping?: any;
   }) => Promise<void>;
   onCancel: () => void;
 }
@@ -33,18 +35,18 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
   const [sourceType, setSourceType] = useState<'api' | 'integration'>('api');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [responseMapping, setResponseMapping] = useState<any>(null);
 
   useEffect(() => {
     if (editingPublicAPI) {
       setName(editingPublicAPI.name);
       setDescription(editingPublicAPI.description || '');
-      // Add prefix to match select values
       const targetId = editingPublicAPI.target_api_id;
       if (targetId) {
-        // Check if the target is in the APIs list to add the correct prefix
         setTargetApiId(`api-${targetId}`);
       }
       setProjectId(editingPublicAPI.project_id || '');
+      setResponseMapping(editingPublicAPI.response_mapping || null);
     } else {
       const tempProjectId = localStorage.getItem('tempProjectId');
       if (tempProjectId) {
@@ -83,6 +85,7 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
           name: name.trim(),
           description: description.trim(),
           project_id: projectId || null,
+          response_mapping: responseMapping,
           updated_at: new Date().toISOString()
         };
 
@@ -133,7 +136,8 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
           description: description.trim(),
           targetApiId,
           sourceType,
-          projectId: projectId || undefined
+          projectId: projectId || undefined,
+          responseMapping
         });
       }
     } catch (err) {
@@ -281,6 +285,14 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
             <li>• Puedes exponer tanto APIs internas como externas de forma segura</li>
             <li>• Monitorea todos los logs y peticiones en tiempo real</li>
           </ul>
+        </div>
+
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
+          <h4 className="text-sm font-semibold text-slate-300 mb-4">Mapeo de Respuestas (Opcional)</h4>
+          <ResponseMappingConfig
+            value={responseMapping}
+            onChange={setResponseMapping}
+          />
         </div>
 
         {error && (
