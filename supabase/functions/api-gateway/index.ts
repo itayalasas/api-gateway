@@ -322,6 +322,8 @@ Deno.serve(async (req: Request) => {
           value = req.headers.get(paramConfig.path);
         }
 
+        console.log(`[PATH PARAM] ${paramConfig.param}: source=${paramConfig.source}, path=${paramConfig.path}, value=${value}`);
+
         if (value !== null && value !== undefined) {
           const format = paramConfig.format || ':';
           if (format === '${}') {
@@ -329,6 +331,48 @@ Deno.serve(async (req: Request) => {
             targetPath = targetPath.replace(pattern, String(value));
           } else {
             targetPath = targetPath.replace(`:${paramConfig.param}`, String(value));
+          }
+        } else {
+          // If path param is missing, check if it's required in the URL
+          const format = paramConfig.format || ':';
+          const pattern = format === '${}' ? '${' + paramConfig.param + '}' : `:${paramConfig.param}`;
+
+          if (targetPath.includes(pattern)) {
+            console.error(`[PATH PARAM ERROR] Required parameter '${paramConfig.param}' is missing. Source: ${paramConfig.source}, Path: ${paramConfig.path}`);
+
+            await logRequest(supabase, {
+              integration_id: integrationId,
+              request_id: requestId,
+              method: req.method,
+              path: targetEndpoint.path,
+              headers: Object.fromEntries(req.headers.entries()),
+              body: parsedBody,
+              response_status: 400,
+              response_body: {
+                error: `Required path parameter '${paramConfig.param}' is missing`,
+                source: paramConfig.source,
+                expected_location: paramConfig.path,
+                available_headers: Object.fromEntries(req.headers.entries())
+              },
+              response_time_ms: Date.now() - startTime,
+              error_message: `Missing required path parameter: ${paramConfig.param}`,
+              created_at: new Date().toISOString()
+            });
+
+            return new Response(
+              JSON.stringify({
+                error: `Required path parameter '${paramConfig.param}' is missing`,
+                details: {
+                  source: paramConfig.source,
+                  expected_location: paramConfig.path,
+                  received_value: value,
+                  hint: paramConfig.source === 'header'
+                    ? `Make sure the header '${paramConfig.path}' is sent in the request`
+                    : `Make sure the ${paramConfig.source} contains '${paramConfig.path}'`
+                }
+              }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
           }
         }
       }
