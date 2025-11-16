@@ -310,6 +310,7 @@ Deno.serve(async (req: Request) => {
     // Handle path params
     if (integration.path_params && Array.isArray(integration.path_params)) {
       const pathParams = integration.path_params as Array<{ param: string; source: string; path: string; format?: string }>;
+      console.log(`[PATH PARAMS DEBUG] Processing ${pathParams.length} path params. Target path BEFORE: ${targetPath}`);
 
       for (const paramConfig of pathParams) {
         let value: any;
@@ -322,13 +323,15 @@ Deno.serve(async (req: Request) => {
           value = req.headers.get(paramConfig.path);
         }
 
-        console.log(`[PATH PARAM] ${paramConfig.param}: source=${paramConfig.source}, path=${paramConfig.path}, value=${value}`);
+        console.log(`[PATH PARAM] ${paramConfig.param}: source=${paramConfig.source}, path=${paramConfig.path}, value=${value}, format=${paramConfig.format}`);
 
         if (value !== null && value !== undefined) {
           const format = paramConfig.format || ':';
           if (format === '${}') {
             const pattern = '${' + paramConfig.param + '}';
+            console.log(`[PATH PARAM REPLACE] Replacing pattern "${pattern}" with "${value}" in path "${targetPath}"`);
             targetPath = targetPath.replace(pattern, String(value));
+            console.log(`[PATH PARAM REPLACE] Path AFTER replace: "${targetPath}"`);
           } else {
             targetPath = targetPath.replace(`:${paramConfig.param}`, String(value));
           }
@@ -381,6 +384,8 @@ Deno.serve(async (req: Request) => {
     // Build target URL with query params
     const queryString = queryParams.toString();
     const targetUrl = `${targetApi.base_url}${targetPath}${queryString ? '?' + queryString : ''}`;
+    console.log(`[TARGET URL] Final URL: ${targetUrl}`);
+
     const targetHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     };
