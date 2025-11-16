@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Play, Square, ArrowRight, MoreVertical, FolderOpen, Globe } from 'lucide-react';
+import { Plus, Play, Square, ArrowRight, MoreVertical, FolderOpen, Globe, Copy } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { IntegrationForm } from './IntegrationForm';
@@ -150,6 +150,59 @@ export function IntegrationWorkspace() {
   const handleEdit = (integration: Integration) => {
     setEditingIntegration(integration);
     setShowForm(true);
+  };
+
+  const handleDuplicate = async (integration: IntegrationWithAPIs) => {
+    const userId = externalUser?.id || user?.id;
+    if (!userId) return;
+
+    // Crear copia de la integración con un nombre modificado
+    const newIntegrationName = `${integration.name} (Copia)`;
+
+    const { data: newIntegration, error: integrationError } = await supabase
+      .from('integrations')
+      .insert({
+        user_id: userId,
+        project_id: integration.project_id,
+        name: newIntegrationName,
+        source_api_id: integration.source_api_id,
+        target_api_id: integration.target_api_id,
+        target_endpoint_id: integration.target_endpoint_id,
+        mode: integration.mode,
+        is_active: false, // Desactivar la copia por defecto
+        transform_script: integration.transform_script,
+        custom_headers: integration.custom_headers,
+        forward_headers: integration.forward_headers,
+        path_params: integration.path_params,
+        query_params: integration.query_params
+      })
+      .select()
+      .single();
+
+    if (integrationError) {
+      console.error('Error duplicating integration:', integrationError);
+      showError('Error al duplicar la integración');
+      return;
+    }
+
+    // Copiar los source endpoints desde la tabla junction
+    if (integration.source_endpoints && integration.source_endpoints.length > 0) {
+      const junctionRecords = integration.source_endpoints.map(ep => ({
+        integration_id: newIntegration.id,
+        source_endpoint_id: ep.id
+      }));
+
+      const { error: junctionError } = await supabase
+        .from('integration_source_endpoints')
+        .insert(junctionRecords);
+
+      if (junctionError) {
+        console.error('Error copying source endpoints:', junctionError);
+      }
+    }
+
+    success(`Integración "${newIntegrationName}" duplicada correctamente`);
+    loadData();
   };
 
   const handleCloseForm = () => {
@@ -388,6 +441,16 @@ export function IntegrationWorkspace() {
                         className="px-2.5 py-1.5 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 text-xs font-medium rounded transition-colors"
                       >
                         Editar
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDuplicate(integration);
+                        }}
+                        className="px-2.5 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-medium rounded transition-colors"
+                        title="Duplicar integración"
+                      >
+                        <Copy className="w-3 h-3" />
                       </button>
                       <button
                         onClick={(e) => {

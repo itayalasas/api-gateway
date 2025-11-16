@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, CreditCard as Edit, Trash2, Globe, Lock, MoreVertical, FolderOpen } from 'lucide-react';
+import { Plus, CreditCard as Edit, Trash2, Globe, Lock, MoreVertical, FolderOpen, Copy } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { APIForm } from './APIForm';
@@ -115,6 +115,79 @@ export function APIList() {
   const handleEdit = (api: API) => {
     setEditingAPI(api);
     setShowForm(true);
+  };
+
+  const handleDuplicate = async (api: API) => {
+    const userId = externalUser?.id || user?.id;
+    if (!userId) return;
+
+    // Crear copia de la API con un nombre modificado
+    const newApiName = `${api.name} (Copia)`;
+
+    const { data: newApi, error: apiError } = await supabase
+      .from('apis')
+      .insert({
+        user_id: userId,
+        project_id: api.project_id,
+        name: newApiName,
+        description: api.description,
+        base_url: api.base_url,
+        type: api.type,
+        is_active: false // Desactivar la copia por defecto
+      })
+      .select()
+      .single();
+
+    if (apiError) {
+      console.error('Error duplicating API:', apiError);
+      showError('Error al duplicar la API');
+      return;
+    }
+
+    // Copiar la configuración de seguridad si existe
+    if (api.security) {
+      const { error: securityError } = await supabase
+        .from('api_security')
+        .insert({
+          api_id: newApi.id,
+          auth_type: api.security.auth_type,
+          api_key_header: api.security.api_key_header,
+          api_key_value: api.security.api_key_value,
+          bearer_token: api.security.bearer_token,
+          basic_username: api.security.basic_username,
+          basic_password: api.security.basic_password
+        });
+
+      if (securityError) {
+        console.error('Error copying security config:', securityError);
+      }
+    }
+
+    // Copiar todos los endpoints
+    const { data: endpoints } = await supabase
+      .from('api_endpoints')
+      .select('*')
+      .eq('api_id', api.id);
+
+    if (endpoints && endpoints.length > 0) {
+      const newEndpoints = endpoints.map(ep => ({
+        api_id: newApi.id,
+        path: ep.path,
+        method: ep.method,
+        description: ep.description
+      }));
+
+      const { error: endpointsError } = await supabase
+        .from('api_endpoints')
+        .insert(newEndpoints);
+
+      if (endpointsError) {
+        console.error('Error copying endpoints:', endpointsError);
+      }
+    }
+
+    success(`API "${newApiName}" duplicada correctamente`);
+    loadAPIs();
   };
 
   const handleCloseForm = () => {
@@ -286,6 +359,13 @@ export function APIList() {
                       >
                         <Edit className="w-4 h-4" />
                         Edit
+                      </button>
+                      <button
+                        onClick={() => handleDuplicate(api)}
+                        className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 px-3 py-2 rounded-lg transition-colors"
+                        title="Duplicar API"
+                      >
+                        <Copy className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteClick(api.id, api.name)}
