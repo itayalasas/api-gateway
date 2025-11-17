@@ -607,11 +607,16 @@ Deno.serve(async (req: Request) => {
         created_at: new Date().toISOString()
       });
 
-      return new Response(responseText, {
+      // Return the mapped response body if mapping was applied, otherwise return original text
+      const finalResponse = typeof responseBody === 'object'
+        ? JSON.stringify(responseBody)
+        : responseText;
+
+      return new Response(finalResponse, {
         status: targetResponse.status,
         headers: {
           ...corsHeaders,
-          'Content-Type': targetResponse.headers.get('Content-Type') || 'application/json',
+          'Content-Type': 'application/json',
           'X-Request-Id': requestId,
           'X-Response-Time': `${responseTime}ms`,
           'X-Proxy-Mode': proxyMode,
