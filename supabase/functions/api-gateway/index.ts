@@ -475,24 +475,107 @@ Deno.serve(async (req: Request) => {
         fetchOptions.body = JSON.stringify(dataToSend);
       }
 
-      const targetResponse = await fetch(targetUrl, fetchOptions);
+      // Check cache if enabled
+      let responseBody: any;
+      let responseText: string;
+      let responseStatus = 200;
+      let wasCached = false;
 
-      const responseText = await targetResponse.text();
-      let responseBody;
-      try {
-        responseBody = JSON.parse(responseText);
-      } catch {
-        responseBody = responseText;
-      }
+      if (integration.cache_enabled) {
+        const cacheKey = generateCacheKey(targetUrl, dataToSend);
 
-      // Apply response mapping if configured
-      if (integration.response_mapping) {
-        const mappingConfig = integration.response_mapping as any;
-        if (mappingConfig.enabled) {
+        // Try to get from cache
+        const { data: cachedResponse } = await supabase
+          .from('api_response_cache')
+          .select('*')
+          .eq('integration_id', integrationId)
+          .eq('cache_key', cacheKey)
+          .gt('expires_at', new Date().toISOString())
+          .maybeSingle();
+
+        if (cachedResponse) {
+          // Use cached response
+          responseBody = cachedResponse.response_data;
+          responseText = JSON.stringify(responseBody);
+          responseStatus = 200;
+          wasCached = true;
+
+          // Increment hit count
+          await supabase
+            .from('api_response_cache')
+            .update({
+              hit_count: cachedResponse.hit_count + 1,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', cachedResponse.id);
+
+          console.log(`[CACHE HIT] Integration: ${integrationId}, Key: ${cacheKey}, Hits: ${cachedResponse.hit_count + 1}`);
+        } else {
+          // Fetch from API
+          const targetResponse = await fetch(targetUrl, fetchOptions);
+          responseText = await targetResponse.text();
+          responseStatus = targetResponse.status;
+
           try {
-            responseBody = applyResponseMapping(responseBody, mappingConfig);
-          } catch (mappingError) {
-            console.error('Response mapping error:', mappingError);
+            responseBody = JSON.parse(responseText);
+          } catch {
+            responseBody = responseText;
+          }
+
+          // Apply response mapping if configured
+          if (integration.response_mapping) {
+            const mappingConfig = integration.response_mapping as any;
+            if (mappingConfig.enabled) {
+              try {
+                responseBody = applyResponseMapping(responseBody, mappingConfig);
+              } catch (mappingError) {
+                console.error('Response mapping error:', mappingError);
+              }
+            }
+          }
+
+          // Save to cache
+          const ttlHours = integration.cache_ttl_hours || 24;
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + ttlHours);
+
+          await supabase
+            .from('api_response_cache')
+            .upsert({
+              integration_id: integrationId,
+              cache_key: cacheKey,
+              response_data: responseBody,
+              cached_at: new Date().toISOString(),
+              expires_at: expiresAt.toISOString(),
+              hit_count: 0,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'integration_id,cache_key'
+            });
+
+          console.log(`[CACHE MISS] Integration: ${integrationId}, Key: ${cacheKey}, TTL: ${ttlHours}h`);
+        }
+      } else {
+        // No cache - fetch directly
+        const targetResponse = await fetch(targetUrl, fetchOptions);
+        responseText = await targetResponse.text();
+        responseStatus = targetResponse.status;
+
+        try {
+          responseBody = JSON.parse(responseText);
+        } catch {
+          responseBody = responseText;
+        }
+
+        // Apply response mapping if configured
+        if (integration.response_mapping) {
+          const mappingConfig = integration.response_mapping as any;
+          if (mappingConfig.enabled) {
+            try {
+              responseBody = applyResponseMapping(responseBody, mappingConfig);
+            } catch (mappingError) {
+              console.error('Response mapping error:', mappingError);
+            }
           }
         }
       }
@@ -600,7 +683,7 @@ Deno.serve(async (req: Request) => {
         path: targetEndpoint.path,
         headers: Object.fromEntries(req.headers.entries()),
         body: parsedBody,
-        response_status: targetResponse.status,
+        response_status: responseStatus,
         response_body: responseBody,
         response_time_ms: responseTime,
         error_message: null,
@@ -613,13 +696,14 @@ Deno.serve(async (req: Request) => {
         : responseText;
 
       return new Response(finalResponse, {
-        status: targetResponse.status,
+        status: responseStatus,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',
           'X-Request-Id': requestId,
           'X-Response-Time': `${responseTime}ms`,
           'X-Proxy-Mode': proxyMode,
+          'X-Cache-Status': wasCached ? 'HIT' : 'MISS',
         },
       });
 
@@ -752,6 +836,19 @@ async function logRequest(supabase: any, logData: any) {
   } catch (error) {
     console.error('Failed to log request:', error);
   }
+}
+
+function generateCacheKey(url: string, body: any): string {
+  const data = `${url}:${JSON.stringify(body || {})}`;
+
+  // Simple hash function (FNV-1a)
+  let hash = 2166136261;
+  for (let i = 0; i < data.length; i++) {
+    hash ^= data.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+
+  return (hash >>> 0).toString(36);
 }
 
 function applyResponseMapping(responseData: any, mappingConfig: any): any {

@@ -5,6 +5,7 @@ import { useProject } from '../../contexts/ProjectContext';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
 import { ResponseMappingConfig } from './ResponseMappingConfig';
+import { CacheConfig } from './CacheConfig';
 
 type API = DB['public']['Tables']['apis']['Row'];
 type Integration = DB['public']['Tables']['integrations']['Row'];
@@ -36,6 +37,8 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [responseMapping, setResponseMapping] = useState<any>(null);
+  const [cacheEnabled, setCacheEnabled] = useState(false);
+  const [cacheTtlHours, setCacheTtlHours] = useState(24);
 
   useEffect(() => {
     if (editingPublicAPI) {
@@ -47,6 +50,8 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
       }
       setProjectId(editingPublicAPI.project_id || '');
       setResponseMapping(editingPublicAPI.response_mapping || null);
+      setCacheEnabled(editingPublicAPI.cache_enabled || false);
+      setCacheTtlHours(editingPublicAPI.cache_ttl_hours || 24);
     } else {
       const tempProjectId = localStorage.getItem('tempProjectId');
       if (tempProjectId) {
@@ -86,6 +91,8 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
           description: description.trim(),
           project_id: projectId || null,
           response_mapping: responseMapping,
+          cache_enabled: cacheEnabled,
+          cache_ttl_hours: cacheTtlHours,
           updated_at: new Date().toISOString()
         };
 
@@ -292,6 +299,18 @@ export function PublicAPIForm({ apis, publicAPIs, editingPublicAPI, onSubmit, on
           <ResponseMappingConfig
             value={responseMapping}
             onChange={setResponseMapping}
+          />
+        </div>
+
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
+          <h4 className="text-sm font-semibold text-slate-300 mb-4">Configuración de Cache (Opcional)</h4>
+          <CacheConfig
+            enabled={cacheEnabled}
+            ttlHours={cacheTtlHours}
+            onChange={(enabled, ttl) => {
+              setCacheEnabled(enabled);
+              setCacheTtlHours(ttl);
+            }}
           />
         </div>
 
