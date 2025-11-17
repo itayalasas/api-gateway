@@ -757,28 +757,44 @@ async function logRequest(supabase: any, logData: any) {
 function applyResponseMapping(responseData: any, mappingConfig: any): any {
   const { template, transformations } = mappingConfig;
 
-  if (!template) {
-    return responseData;
-  }
+  // If only transformations are provided, use them to build the output structure
+  if (transformations && Array.isArray(transformations) && transformations.length > 0) {
+    const isArray = Array.isArray(responseData);
+    const dataArray = isArray ? responseData : [responseData];
+    const results = [];
 
-  const isArray = Array.isArray(responseData);
-  const dataArray = isArray ? responseData : [responseData];
-  const results = [];
+    for (const item of dataArray) {
+      // Start with template if provided, otherwise start with empty object
+      let mappedItem = template ? processTemplate(template, item) : {};
 
-  for (const item of dataArray) {
-    let mappedItem = processTemplate(template, item);
-
-    if (transformations && Array.isArray(transformations)) {
+      // Apply transformations to build or modify the output
       for (const transform of transformations) {
         const value = evaluateExpression(transform.expression, item);
         setNestedValue(mappedItem, transform.field, value);
       }
+
+      results.push(mappedItem);
     }
 
-    results.push(mappedItem);
+    return isArray ? results : results[0];
   }
 
-  return isArray ? results : results[0];
+  // If only template is provided (no transformations)
+  if (template) {
+    const isArray = Array.isArray(responseData);
+    const dataArray = isArray ? responseData : [responseData];
+    const results = [];
+
+    for (const item of dataArray) {
+      const mappedItem = processTemplate(template, item);
+      results.push(mappedItem);
+    }
+
+    return isArray ? results : results[0];
+  }
+
+  // If neither template nor transformations, return original
+  return responseData;
 }
 
 function processTemplate(template: any, data: any): any {
