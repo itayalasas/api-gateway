@@ -22,6 +22,7 @@ type RequestLog = DB['public']['Tables']['request_logs']['Row'];
 export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEdit, onViewLogs }: PublicAPIListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedType, setCopiedType] = useState<'url' | 'key' | null>(null);
+  const [expandedAPIs, setExpandedAPIs] = useState<Set<string>>(new Set());
   const [expandedLogs, setExpandedLogs] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, RequestLog[]>>({});
   const [loadingLogs, setLoadingLogs] = useState<string | null>(null);
@@ -40,6 +41,16 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEd
 
   const getTargetAPI = (targetId: string | null) => {
     return apis.find(api => api.id === targetId);
+  };
+
+  const toggleExpand = (apiId: string) => {
+    const newExpanded = new Set(expandedAPIs);
+    if (newExpanded.has(apiId)) {
+      newExpanded.delete(apiId);
+    } else {
+      newExpanded.add(apiId);
+    }
+    setExpandedAPIs(newExpanded);
   };
 
   const toggleLogs = async (integrationId: string) => {
@@ -105,10 +116,11 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEd
   }, [expandedLogs]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {publicAPIs.map((publicAPI) => {
         const targetAPI = getTargetAPI(publicAPI.target_api_id);
         const publicUrl = getGatewayUrl(publicAPI.id);
+        const isExpanded = expandedAPIs.has(publicAPI.id);
 
         return (
           <div
@@ -119,63 +131,58 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEd
                 : 'border-slate-700 opacity-60'
             }`}
           >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      publicAPI.is_active ? 'bg-green-600/20' : 'bg-slate-700/50'
-                    }`}>
-                      <Globe className={`w-5 h-5 ${
-                        publicAPI.is_active ? 'text-green-400' : 'text-slate-500'
-                      }`} />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">{publicAPI.name}</h3>
-                      {publicAPI.description && (
-                        <p className="text-sm text-slate-400 mt-1">{publicAPI.description}</p>
+            {/* Header - Always Visible */}
+            <div className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <button
+                    onClick={() => toggleExpand(publicAPI.id)}
+                    className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center bg-slate-700/50 hover:bg-slate-600/50 transition-colors"
+                  >
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-slate-300" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-300" />
+                    )}
+                  </button>
+
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    publicAPI.is_active ? 'bg-green-600/20' : 'bg-slate-700/50'
+                  }`}>
+                    <Globe className={`w-5 h-5 ${
+                      publicAPI.is_active ? 'text-green-400' : 'text-slate-500'
+                    }`} />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold text-white truncate">{publicAPI.name}</h3>
+                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                        publicAPI.is_active
+                          ? 'bg-green-600/20 text-green-400'
+                          : 'bg-slate-700 text-slate-400'
+                      }`}>
+                        {publicAPI.is_active ? 'Activa' : 'Inactiva'}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-blue-600/20 text-blue-400 font-medium">
+                        Proxy Público
+                      </span>
+                      {publicAPI.cache_enabled && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-purple-600/20 text-purple-400 font-medium">
+                          Cache: {publicAPI.cache_ttl_hours}h
+                        </span>
                       )}
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-xs px-2 py-1 rounded font-medium ${
-                      publicAPI.is_active
-                        ? 'bg-green-600/20 text-green-400'
-                        : 'bg-slate-700 text-slate-400'
-                    }`}>
-                      {publicAPI.is_active ? 'Activa' : 'Inactiva'}
-                    </span>
-                    <span className="text-xs px-2 py-1 rounded bg-blue-600/20 text-blue-400 font-medium">
-                      Proxy Público
-                    </span>
-                    {publicAPI.transform_config &&
-                     typeof publicAPI.transform_config === 'object' &&
-                     'source_type' in publicAPI.transform_config && (
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${
-                        publicAPI.transform_config.source_type === 'integration'
-                          ? 'bg-purple-600/20 text-purple-400'
-                          : 'bg-cyan-600/20 text-cyan-400'
-                      }`}>
-                        {publicAPI.transform_config.source_type === 'integration'
-                          ? '🔗 Basada en API Pública'
-                          : '📍 Basada en API Interna'}
-                      </span>
-                    )}
-                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => toggleLogs(publicAPI.id)}
                     className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 p-2 rounded-lg transition-colors"
                     title="Ver Logs"
                   >
-                    {expandedLogs === publicAPI.id ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <Activity className="w-4 h-4" />
-                    )}
+                    <Activity className="w-4 h-4" />
                   </button>
                   {onEdit && (
                     <button
@@ -210,15 +217,22 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEd
                   </button>
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-3">
+            {/* Expanded Details */}
+            {isExpanded && (
+              <div className="px-4 pb-4 space-y-3 border-t border-slate-700 pt-4">
+                {publicAPI.description && (
+                  <p className="text-sm text-slate-400">{publicAPI.description}</p>
+                )}
+
                 <div className="bg-slate-900/50 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <ExternalLink className="w-4 h-4 text-slate-500" />
                     <p className="text-xs font-semibold text-slate-400">API Interna (Destino)</p>
                   </div>
                   {targetAPI ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm text-white font-medium">{targetAPI.name}</p>
                       <code className="text-xs text-slate-400 font-mono bg-slate-950 px-2 py-1 rounded">
                         {targetAPI.base_url}
@@ -278,10 +292,8 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEd
                     Header requerido: <code className="text-blue-400">X-Integration-Key: {publicAPI.api_key || '[API-KEY]'}</code>
                   </p>
                 </div>
-              </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-700">
-                <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="grid grid-cols-2 gap-3 text-xs bg-slate-900/50 rounded-lg p-3">
                   <div>
                     <p className="text-slate-500 mb-1">Creada</p>
                     <p className="text-slate-300">
@@ -296,20 +308,28 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEd
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
+            {/* Logs Section */}
             {expandedLogs === publicAPI.id && (
-              <div className="border-t border-slate-700 p-6 bg-slate-900/30">
+              <div className="border-t border-slate-700 p-4 bg-slate-900/30">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-sm font-semibold text-white flex items-center gap-2">
                     <Activity className="w-4 h-4 text-blue-400" />
                     Request Logs
                   </h4>
-                  {loadingLogs === publicAPI.id && (
-                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                  )}
+                  <button
+                    onClick={() => setExpandedLogs(null)}
+                    className="text-slate-400 hover:text-white transition-colors"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
                 </div>
-                {logs[publicAPI.id] && logs[publicAPI.id].length > 0 ? (
+                {loadingLogs === publicAPI.id ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : logs[publicAPI.id] && logs[publicAPI.id].length > 0 ? (
                   <LogStream
                     logs={logs[publicAPI.id]}
                     onLogClick={(logId) => setExpandedLogDetail(expandedLogDetail === logId ? null : logId)}
