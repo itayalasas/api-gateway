@@ -216,30 +216,39 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { data: targetApi } = await supabase
-      .from('apis')
-      .select('*')
-      .eq('id', integration.target_api_id)
-      .maybeSingle();
+    // Query target API and endpoint - may be null for integrations in configuration
+    const { data: targetApi } = integration.target_api_id
+      ? await supabase
+          .from('apis')
+          .select('*')
+          .eq('id', integration.target_api_id)
+          .maybeSingle()
+      : { data: null };
 
-    const { data: targetEndpoint } = await supabase
-      .from('api_endpoints')
-      .select('*')
-      .eq('id', integration.target_endpoint_id)
-      .maybeSingle();
+    const { data: targetEndpoint } = integration.target_endpoint_id
+      ? await supabase
+          .from('api_endpoints')
+          .select('*')
+          .eq('id', integration.target_endpoint_id)
+          .maybeSingle()
+      : { data: null };
 
-    const { data: security } = await supabase
-      .from('api_security')
-      .select('*')
-      .eq('api_id', integration.target_api_id)
-      .maybeSingle();
+    const { data: security } = integration.target_api_id
+      ? await supabase
+          .from('api_security')
+          .select('*')
+          .eq('api_id', integration.target_api_id)
+          .maybeSingle()
+      : { data: null };
 
-    if (!targetApi || !targetEndpoint) {
+    // Validate that we have minimum required configuration
+    // We need either: (targetApi + targetEndpoint) OR (targetApi + integration.endpoint_path + integration.method)
+    if (!targetApi) {
       const debugInfo = {
         target_api_id: integration.target_api_id,
         target_endpoint_id: integration.target_endpoint_id,
-        targetApi_found: !!targetApi,
-        targetEndpoint_found: !!targetEndpoint
+        has_endpoint_path: !!integration.endpoint_path,
+        has_method: !!integration.method
       };
 
       await logRequest(supabase, {
@@ -252,21 +261,54 @@ Deno.serve(async (req: Request) => {
         response_status: 500,
         response_body: { error: 'Target API configuration not found', debug: debugInfo },
         response_time_ms: Date.now() - startTime,
-        error_message: `Target API or endpoint not configured. Debug: ${JSON.stringify(debugInfo)}`,
+        error_message: `Target API not configured. Debug: ${JSON.stringify(debugInfo)}`,
         created_at: new Date().toISOString()
       });
 
       return new Response(
         JSON.stringify({
           error: 'Target API configuration not found',
-          message: 'The target API or endpoint is not properly configured for this integration',
+          message: 'The target API is not properly configured for this integration. Please complete the configuration in the dashboard.',
           debug: debugInfo
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    let targetPath = targetEndpoint.path;
+    // If no endpoint but also no fallback path/method, cannot proceed
+    if (!targetEndpoint && (!integration.endpoint_path || !integration.method)) {
+      const debugInfo = {
+        target_api_id: integration.target_api_id,
+        target_endpoint_id: integration.target_endpoint_id,
+        has_endpoint_path: !!integration.endpoint_path,
+        has_method: !!integration.method
+      };
+
+      await logRequest(supabase, {
+        integration_id: integrationId,
+        request_id: requestId,
+        method: req.method,
+        path: url.pathname,
+        headers: Object.fromEntries(req.headers.entries()),
+        body: parsedBody,
+        response_status: 500,
+        response_body: { error: 'Target endpoint configuration incomplete', debug: debugInfo },
+        response_time_ms: Date.now() - startTime,
+        error_message: `Target endpoint not configured. Debug: ${JSON.stringify(debugInfo)}`,
+        created_at: new Date().toISOString()
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: 'Target endpoint configuration incomplete',
+          message: 'The target endpoint is not properly configured for this integration. Please select an endpoint or configure endpoint_path and method.',
+          debug: debugInfo
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    let targetPath = targetEndpoint?.path || integration.endpoint_path || '';
     const queryParams = new URLSearchParams();
 
     // Handle query params from transform_config
@@ -347,7 +389,7 @@ Deno.serve(async (req: Request) => {
               integration_id: integrationId,
               request_id: requestId,
               method: req.method,
-              path: targetEndpoint.path,
+              path: targetEndpoint?.path || integration.endpoint_path || url.pathname,
               headers: Object.fromEntries(req.headers.entries()),
               body: parsedBody,
               response_status: 400,
@@ -463,10 +505,11 @@ Deno.serve(async (req: Request) => {
     try {
       // GET, HEAD, and DELETE methods should not have a request body
       const methodsWithoutBody = ['GET', 'HEAD', 'DELETE'];
-      const shouldIncludeBody = !methodsWithoutBody.includes(targetEndpoint.method.toUpperCase());
+      const method = targetEndpoint?.method || integration.method || 'POST';
+      const shouldIncludeBody = !methodsWithoutBody.includes(method.toUpperCase());
 
       const fetchOptions: RequestInit = {
-        method: targetEndpoint.method,
+        method: method,
         headers: targetHeaders,
       };
 
@@ -647,7 +690,7 @@ Deno.serve(async (req: Request) => {
               integration_id: integrationId,
               request_id: requestId,
               method: req.method,
-              path: targetEndpoint.path,
+              path: targetEndpoint?.path || integration.endpoint_path || url.pathname,
               headers: Object.fromEntries(req.headers.entries()),
               body: parsedBody,
               response_status: postResponse.status,
@@ -680,7 +723,7 @@ Deno.serve(async (req: Request) => {
         integration_id: integrationId,
         request_id: requestId,
         method: req.method,
-        path: targetEndpoint.path,
+        path: targetEndpoint?.path || integration.endpoint_path || url.pathname,
         headers: Object.fromEntries(req.headers.entries()),
         body: parsedBody,
         response_status: responseStatus,
@@ -715,7 +758,7 @@ Deno.serve(async (req: Request) => {
         integration_id: integrationId,
         request_id: requestId,
         method: req.method,
-        path: targetEndpoint.path,
+        path: targetEndpoint?.path || integration.endpoint_path || url.pathname,
         headers: Object.fromEntries(req.headers.entries()),
         body: parsedBody,
         response_status: null,
