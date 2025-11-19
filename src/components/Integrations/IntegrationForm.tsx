@@ -130,7 +130,11 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
     const userId = externalUser?.id || user?.id;
     if (!userId) return;
 
-    if (sourceEndpointIds.length === 0 || !targetEndpointId) {
+    // For public_proxy integrations being edited, allow updates without requiring both endpoints
+    const isPublicProxy = integration?.type === 'public_proxy';
+    const isEditing = !!integration;
+
+    if (!isEditing && (sourceEndpointIds.length === 0 || !targetEndpointId)) {
       setError('Debes seleccionar al menos un endpoint de origen y un endpoint de destino');
       return;
     }
@@ -139,12 +143,15 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
     setLoading(true);
 
     try {
-      const targetEndpoint = apisWithEndpoints
-        .find(a => a.id === targetApiId)?.endpoints
-        .find(e => e.id === targetEndpointId);
+      let targetEndpoint = null;
+      if (targetEndpointId) {
+        targetEndpoint = apisWithEndpoints
+          .find(a => a.id === targetApiId)?.endpoints
+          .find(e => e.id === targetEndpointId);
 
-      if (!targetEndpoint) {
-        throw new Error('Endpoint de destino no encontrado');
+        if (!targetEndpoint) {
+          throw new Error('Endpoint de destino no encontrado');
+        }
       }
 
       const headersObject = customHeaders
@@ -178,15 +185,15 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         query_params: queryParamsConfig
       } : {};
 
-      const integrationData = {
+      const integrationData: any = {
         user_id: userId,
         name,
-        source_api_id: sourceApiId,
-        target_api_id: targetApiId,
-        source_endpoint_id: sourceEndpointIds[0],
-        target_endpoint_id: targetEndpointId,
-        endpoint_path: targetEndpoint.path,
-        method: targetEndpoint.method,
+        source_api_id: sourceApiId || null,
+        target_api_id: targetApiId || null,
+        source_endpoint_id: sourceEndpointIds.length > 0 ? sourceEndpointIds[0] : null,
+        target_endpoint_id: targetEndpointId || null,
+        endpoint_path: targetEndpoint?.path || integration?.endpoint_path || null,
+        method: targetEndpoint?.method || integration?.method || null,
         project_id: projectId,
         is_active: true,
         transform_config: transformConfig,
@@ -208,11 +215,13 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
 
         if (updateError) throw updateError;
 
-        // Delete existing source endpoints
-        await supabase
-          .from('integration_source_endpoints')
-          .delete()
-          .eq('integration_id', integrationId);
+        // Delete existing source endpoints only if we have new ones
+        if (sourceEndpointIds.length > 0) {
+          await supabase
+            .from('integration_source_endpoints')
+            .delete()
+            .eq('integration_id', integrationId);
+        }
       } else {
         const { data: newIntegration, error: insertError } = await supabase
           .from('integrations')
@@ -224,17 +233,19 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
         integrationId = newIntegration.id;
       }
 
-      // Insert all source endpoints into junction table
-      const sourceEndpointsData = sourceEndpointIds.map(endpointId => ({
-        integration_id: integrationId,
-        source_endpoint_id: endpointId
-      }));
+      // Insert all source endpoints into junction table only if we have some
+      if (sourceEndpointIds.length > 0) {
+        const sourceEndpointsData = sourceEndpointIds.map(endpointId => ({
+          integration_id: integrationId,
+          source_endpoint_id: endpointId
+        }));
 
-      const { error: junctionError } = await supabase
-        .from('integration_source_endpoints')
-        .insert(sourceEndpointsData);
+        const { error: junctionError } = await supabase
+          .from('integration_source_endpoints')
+          .insert(sourceEndpointsData);
 
-      if (junctionError) throw junctionError;
+        if (junctionError) throw junctionError;
+      }
 
       onClose();
     } catch (err) {
@@ -335,11 +346,20 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
             </div>
           </div>
 
+          {integration?.type === 'public_proxy' && (
+            <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-blue-400 mb-2">Modo de Edición - API Pública</h4>
+              <p className="text-xs text-blue-100">
+                Estás editando una integración de tipo API Pública. Puedes actualizar los parámetros, headers y configuraciones sin necesidad de seleccionar nuevamente los endpoints de origen y destino si no deseas cambiarlos.
+              </p>
+            </div>
+          )}
+
           <div className="bg-slate-900 rounded-xl p-6 space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <span className="bg-green-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span>
-                Endpoint de Origen (Tu API Publicada)
+                Endpoint de Origen (Tu API Publicada) {integration ? '(Opcional)' : ''}
               </h3>
 
               <div className="space-y-4">
@@ -354,7 +374,6 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                       setSourceEndpointIds([]);
                     }}
                     className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
                   >
                     <option value="">Seleccionar API de origen</option>
                     {publishedAPIs.map(api => (
@@ -449,7 +468,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
             <div>
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span>
-                Endpoint de Destino (API Externa)
+                Endpoint de Destino (API Externa) {integration ? '(Opcional)' : ''}
               </h3>
 
               <div className="space-y-4">
@@ -464,7 +483,6 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
                       setTargetEndpointId('');
                     }}
                     className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
                   >
                     <option value="">Seleccionar API de destino</option>
                     {externalAPIs.map(api => (
@@ -845,7 +863,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
             </button>
             <button
               type="submit"
-              disabled={loading || sourceEndpointIds.length === 0 || !targetEndpointId}
+              disabled={loading || (!integration && (sourceEndpointIds.length === 0 || !targetEndpointId))}
               className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white px-4 py-2.5 rounded-lg transition-colors"
             >
               {loading ? 'Guardando...' : integration ? 'Actualizar' : 'Crear Integración'}
