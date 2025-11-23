@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Play, Clock, CheckCircle, XCircle, RefreshCw, Copy, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Play, Clock, CheckCircle, XCircle, RefreshCw, Copy, ExternalLink, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { LogStream } from '../Webhooks/LogStream';
@@ -30,6 +30,7 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [copiedCurl, setCopiedCurl] = useState(false);
   const [showGatewayConfig, setShowGatewayConfig] = useState(false);
   const [regeneratingKey, setRegeneratingKey] = useState(false);
   const [filters, setFilters] = useState<LogFilters>({
@@ -198,6 +199,33 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const generateCurl = () => {
+    const method = integration.source_endpoint?.method || 'POST';
+    let curl = `curl -X ${method} "${gatewayUrl}"`;
+
+    if (integration.api_key) {
+      curl += ` \\\n  -H "X-Integration-Key: ${integration.api_key}"`;
+    }
+
+    curl += ` \\\n  -H "Content-Type: application/json"`;
+
+    if (method !== 'GET' && method !== 'HEAD') {
+      curl += ` \\\n  -d '{"example": "data"}'`;
+    }
+
+    return curl;
+  };
+
+  const copyCurl = async () => {
+    try {
+      await navigator.clipboard.writeText(generateCurl());
+      setCopiedCurl(true);
+      setTimeout(() => setCopiedCurl(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
@@ -473,6 +501,32 @@ export function IntegrationFlow({ integration, onBack }: IntegrationFlowProps) {
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="mt-4 bg-slate-900/50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-slate-300">cURL Command</h4>
+              <button
+                onClick={copyCurl}
+                className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded transition-colors flex items-center gap-2 text-xs"
+                title="Copiar comando cURL"
+              >
+                {copiedCurl ? (
+                  <>
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    Copiado
+                  </>
+                ) : (
+                  <>
+                    <Terminal className="w-3.5 h-3.5" />
+                    Copiar cURL
+                  </>
+                )}
+              </button>
+            </div>
+            <pre className="bg-slate-950 px-3 py-3 rounded text-green-400 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
+              {generateCurl()}
+            </pre>
           </div>
         </div>
         )}

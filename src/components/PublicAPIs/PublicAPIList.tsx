@@ -1,4 +1,4 @@
-import { Globe, Copy, CheckCircle, Trash2, Power, PowerOff, ExternalLink, Activity, ChevronDown, ChevronUp, Edit } from 'lucide-react';
+import { Globe, Copy, CheckCircle, Trash2, Power, PowerOff, ExternalLink, Activity, ChevronDown, ChevronUp, Edit, Terminal } from 'lucide-react';
 import { Database as DB } from '../../lib/database.types';
 import { useState, useEffect } from 'react';
 import { useGatewayUrl } from '../../hooks/useGatewayUrl';
@@ -21,7 +21,7 @@ type RequestLog = DB['public']['Tables']['request_logs']['Row'];
 
 export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEdit, onViewLogs }: PublicAPIListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [copiedType, setCopiedType] = useState<'url' | 'key' | null>(null);
+  const [copiedType, setCopiedType] = useState<'url' | 'key' | 'curl' | null>(null);
   const [expandedAPIs, setExpandedAPIs] = useState<Set<string>>(new Set());
   const [expandedLogs, setExpandedLogs] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, RequestLog[]>>({});
@@ -29,7 +29,7 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEd
   const [expandedLogDetail, setExpandedLogDetail] = useState<string | null>(null);
   const { getGatewayUrl } = useGatewayUrl();
 
-  const copyToClipboard = (text: string, id: string, type: 'url' | 'key') => {
+  const copyToClipboard = (text: string, id: string, type: 'url' | 'key' | 'curl') => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setCopiedType(type);
@@ -37,6 +37,21 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEd
       setCopiedId(null);
       setCopiedType(null);
     }, 2000);
+  };
+
+  const generateCurl = (publicAPI: Integration) => {
+    const url = getGatewayUrl(publicAPI.id);
+    const targetAPI = getTargetAPI(publicAPI.target_api_id);
+
+    let curl = `curl -X GET "${url}"`;
+
+    if (publicAPI.api_key) {
+      curl += ` \\\n  -H "X-Integration-Key: ${publicAPI.api_key}"`;
+    }
+
+    curl += ` \\\n  -H "Content-Type: application/json"`;
+
+    return curl;
   };
 
   const getTargetAPI = (targetId: string | null) => {
@@ -291,6 +306,32 @@ export function PublicAPIList({ publicAPIs, apis, onDelete, onToggleActive, onEd
                   <p className="text-xs text-slate-500 mt-2">
                     Header requerido: <code className="text-blue-400">X-Integration-Key: {publicAPI.api_key || '[API-KEY]'}</code>
                   </p>
+                </div>
+
+                <div className="bg-slate-900/50 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-slate-400">cURL Command</p>
+                    <button
+                      onClick={() => copyToClipboard(generateCurl(publicAPI), publicAPI.id, 'curl')}
+                      className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded transition-colors flex items-center gap-2 text-xs"
+                      title="Copiar comando cURL"
+                    >
+                      {copiedId === publicAPI.id && copiedType === 'curl' ? (
+                        <>
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          Copiado
+                        </>
+                      ) : (
+                        <>
+                          <Terminal className="w-3.5 h-3.5" />
+                          Copiar cURL
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <pre className="bg-slate-950 px-3 py-2 rounded text-green-400 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
+                    {generateCurl(publicAPI)}
+                  </pre>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs bg-slate-900/50 rounded-lg p-3">
