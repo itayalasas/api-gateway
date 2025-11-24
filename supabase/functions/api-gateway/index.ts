@@ -36,7 +36,7 @@ interface QueryParamConfig {
 
 interface TransformConfig extends WebhookConfig {
   query_params?: QueryParamConfig[];
-  proxy_mode?: 'direct' | 'post_process';
+  proxy_mode?: 'direct' | 'post_process' | 'fetch_and_forward';
   post_process_api_id?: string;
 }
 
@@ -216,6 +216,31 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Query SOURCE API and endpoint for fetch_and_forward mode
+    const { data: sourceApi } = integration.source_api_id
+      ? await supabase
+          .from('apis')
+          .select('*')
+          .eq('id', integration.source_api_id)
+          .maybeSingle()
+      : { data: null };
+
+    const { data: sourceEndpoint } = integration.source_endpoint_id
+      ? await supabase
+          .from('api_endpoints')
+          .select('*')
+          .eq('id', integration.source_endpoint_id)
+          .maybeSingle()
+      : { data: null };
+
+    const { data: sourceSecurity } = integration.source_api_id
+      ? await supabase
+          .from('api_security')
+          .select('*')
+          .eq('api_id', integration.source_api_id)
+          .maybeSingle()
+      : { data: null };
+
     // Query target API and endpoint - may be null for integrations in configuration
     const { data: targetApi } = integration.target_api_id
       ? await supabase
@@ -242,7 +267,6 @@ Deno.serve(async (req: Request) => {
       : { data: null };
 
     // Validate that we have minimum required configuration
-    // We need either: (targetApi + targetEndpoint) OR (targetApi + integration.endpoint_path + integration.method)
     if (!targetApi) {
       const debugInfo = {
         target_api_id: integration.target_api_id,
@@ -275,7 +299,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // If no endpoint but also no fallback path/method, cannot proceed
     if (!targetEndpoint && (!integration.endpoint_path || !integration.method)) {
       const debugInfo = {
         target_api_id: integration.target_api_id,
@@ -311,7 +334,6 @@ Deno.serve(async (req: Request) => {
     let targetPath = targetEndpoint?.path || integration.endpoint_path || '';
     const queryParams = new URLSearchParams();
 
-    // Handle query params from transform_config
     if (transformConfig.query_params && Array.isArray(transformConfig.query_params)) {
       for (const paramConfig of transformConfig.query_params) {
         let value: any = paramConfig.default;
@@ -349,10 +371,8 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Handle path params
     if (integration.path_params && Array.isArray(integration.path_params)) {
       const pathParams = integration.path_params as Array<{ param: string; source: string; path: string; format?: string }>;
-      console.log(`[PATH PARAMS DEBUG] Processing ${pathParams.length} path params. Target path BEFORE: ${targetPath}`);
 
       for (const paramConfig of pathParams) {
         let value: any;
@@ -365,26 +385,19 @@ Deno.serve(async (req: Request) => {
           value = req.headers.get(paramConfig.path);
         }
 
-        console.log(`[PATH PARAM] ${paramConfig.param}: source=${paramConfig.source}, path=${paramConfig.path}, value=${value}, format=${paramConfig.format}`);
-
         if (value !== null && value !== undefined) {
           const format = paramConfig.format || ':';
           if (format === '${}') {
             const pattern = '${' + paramConfig.param + '}';
-            console.log(`[PATH PARAM REPLACE] Replacing pattern "${pattern}" with "${value}" in path "${targetPath}"`);
             targetPath = targetPath.replace(pattern, String(value));
-            console.log(`[PATH PARAM REPLACE] Path AFTER replace: "${targetPath}"`);
           } else {
             targetPath = targetPath.replace(`:${paramConfig.param}`, String(value));
           }
         } else {
-          // If path param is missing, check if it's required in the URL
           const format = paramConfig.format || ':';
           const pattern = format === '${}' ? '${' + paramConfig.param + '}' : `:${paramConfig.param}`;
 
           if (targetPath.includes(pattern)) {
-            console.error(`[PATH PARAM ERROR] Required parameter '${paramConfig.param}' is missing. Source: ${paramConfig.source}, Path: ${paramConfig.path}`);
-
             await logRequest(supabase, {
               integration_id: integrationId,
               request_id: requestId,
@@ -423,10 +436,8 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Build target URL with query params
     const queryString = queryParams.toString();
     const targetUrl = `${targetApi.base_url}${targetPath}${queryString ? '?' + queryString : ''}`;
-    console.log(`[TARGET URL] Final URL: ${targetUrl}`);
 
     const targetHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -452,13 +463,11 @@ Deno.serve(async (req: Request) => {
         if (key && value) {
           let finalValue = value;
 
-          // Support ${header.name} template syntax
           const headerRegex = /\$\{header\.(\w+)\}/g;
           finalValue = finalValue.replace(headerRegex, (_, headerName) => {
             return req.headers.get(headerName) || '';
           });
 
-          // Support ${body.path} template syntax
           const bodyRegex = /\$\{body\.([^}]+)\}/g;
           finalValue = finalValue.replace(bodyRegex, (_, path) => {
             const bodyValue = getNestedValue(parsedBody, path);
@@ -503,7 +512,66 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-      // GET, HEAD, and DELETE methods should not have a request body
+      // ===== FETCH_AND_FORWARD MODE =====
+      const proxyMode = integration.proxy_mode || 'direct';
+
+      if (proxyMode === 'fetch_and_forward' && sourceApi && sourceEndpoint) {
+        console.log('[FETCH_AND_FORWARD] Starting: Fetch from source, then forward to target');
+
+        const sourceUrl = `${sourceApi.base_url}${sourceEndpoint.path}`;
+        const sourceHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (sourceSecurity && sourceSecurity.auth_type !== 'none') {
+          const authConfig = sourceSecurity.auth_config as any;
+          switch (sourceSecurity.auth_type) {
+            case 'api_key':
+              if (authConfig.headerName && authConfig.apiKey) {
+                sourceHeaders[authConfig.headerName] = authConfig.apiKey;
+              }
+              break;
+            case 'bearer_token':
+              if (authConfig.token) {
+                sourceHeaders['Authorization'] = `Bearer ${authConfig.token}`;
+              }
+              break;
+            case 'basic_auth':
+              if (authConfig.username && authConfig.password) {
+                const credentials = btoa(`${authConfig.username}:${authConfig.password}`);
+                sourceHeaders['Authorization'] = `Basic ${credentials}`;
+              }
+              break;
+          }
+        }
+
+        console.log(`[FETCH_AND_FORWARD] Fetching from source: ${sourceUrl}`);
+
+        const sourceResponse = await fetch(sourceUrl, {
+          method: sourceEndpoint.method,
+          headers: sourceHeaders,
+        });
+
+        const sourceResponseText = await sourceResponse.text();
+        let sourceData: any;
+
+        try {
+          sourceData = JSON.parse(sourceResponseText);
+        } catch {
+          sourceData = sourceResponseText;
+        }
+
+        console.log(`[FETCH_AND_FORWARD] Source response status: ${sourceResponse.status}`);
+        console.log(`[FETCH_AND_FORWARD] Source data received:`, JSON.stringify(sourceData).substring(0, 200));
+
+        if (!sourceResponse.ok) {
+          throw new Error(`Source API returned ${sourceResponse.status}: ${sourceResponseText}`);
+        }
+
+        dataToSend = sourceData;
+      }
+
+      // ===== STANDARD PROXY LOGIC =====
       const methodsWithoutBody = ['GET', 'HEAD', 'DELETE'];
       const method = targetEndpoint?.method || integration.method || 'POST';
       const shouldIncludeBody = !methodsWithoutBody.includes(method.toUpperCase());
@@ -513,12 +581,10 @@ Deno.serve(async (req: Request) => {
         headers: targetHeaders,
       };
 
-      // Only include body for POST, PUT, PATCH, etc.
       if (shouldIncludeBody && dataToSend && Object.keys(dataToSend).length > 0) {
         fetchOptions.body = JSON.stringify(dataToSend);
       }
 
-      // Check cache if enabled
       let responseBody: any;
       let responseText: string;
       let responseStatus = 200;
@@ -527,7 +593,6 @@ Deno.serve(async (req: Request) => {
       if (integration.cache_enabled) {
         const cacheKey = generateCacheKey(targetUrl, dataToSend);
 
-        // Try to get from cache
         const { data: cachedResponse } = await supabase
           .from('api_response_cache')
           .select('*')
@@ -537,13 +602,11 @@ Deno.serve(async (req: Request) => {
           .maybeSingle();
 
         if (cachedResponse) {
-          // Use cached response
           responseBody = cachedResponse.response_data;
           responseText = JSON.stringify(responseBody);
           responseStatus = 200;
           wasCached = true;
 
-          // Increment hit count
           await supabase
             .from('api_response_cache')
             .update({
@@ -554,7 +617,6 @@ Deno.serve(async (req: Request) => {
 
           console.log(`[CACHE HIT] Integration: ${integrationId}, Key: ${cacheKey}, Hits: ${cachedResponse.hit_count + 1}`);
         } else {
-          // Fetch from API
           const targetResponse = await fetch(targetUrl, fetchOptions);
           responseText = await targetResponse.text();
           responseStatus = targetResponse.status;
@@ -565,7 +627,6 @@ Deno.serve(async (req: Request) => {
             responseBody = responseText;
           }
 
-          // Apply response mapping if configured
           if (integration.response_mapping) {
             const mappingConfig = integration.response_mapping as any;
             if (mappingConfig.enabled) {
@@ -577,7 +638,6 @@ Deno.serve(async (req: Request) => {
             }
           }
 
-          // Save to cache
           const ttlHours = integration.cache_ttl_hours || 24;
           const expiresAt = new Date();
           expiresAt.setHours(expiresAt.getHours() + ttlHours);
@@ -599,7 +659,6 @@ Deno.serve(async (req: Request) => {
           console.log(`[CACHE MISS] Integration: ${integrationId}, Key: ${cacheKey}, TTL: ${ttlHours}h`);
         }
       } else {
-        // No cache - fetch directly
         const targetResponse = await fetch(targetUrl, fetchOptions);
         responseText = await targetResponse.text();
         responseStatus = targetResponse.status;
@@ -610,7 +669,6 @@ Deno.serve(async (req: Request) => {
           responseBody = responseText;
         }
 
-        // Apply response mapping if configured
         if (integration.response_mapping) {
           const mappingConfig = integration.response_mapping as any;
           if (mappingConfig.enabled) {
@@ -623,11 +681,8 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // Check if we need to post-process
-      const proxyMode = integration.proxy_mode || 'direct';
       if (proxyMode === 'post_process' && integration.post_process_api_id) {
         try {
-          // Get post-process API configuration
           const { data: postProcessApi } = await supabase
             .from('apis')
             .select('*, api_endpoints(*), api_security(*)')
@@ -643,7 +698,6 @@ Deno.serve(async (req: Request) => {
               'Content-Type': 'application/json',
             };
 
-            // Add authentication for post-process API
             if (postSecurity && postSecurity.auth_type !== 'none') {
               const authConfig = postSecurity.auth_config as any;
               switch (postSecurity.auth_type) {
@@ -666,7 +720,6 @@ Deno.serve(async (req: Request) => {
               }
             }
 
-            // Forward the response from target API to post-process API
             const postResponse = await fetch(postUrl, {
               method: postEndpoint.method,
               headers: postHeaders,
@@ -713,7 +766,6 @@ Deno.serve(async (req: Request) => {
           }
         } catch (postError) {
           console.error('Post-process error:', postError);
-          // Fall through to return original response
         }
       }
 
@@ -733,7 +785,6 @@ Deno.serve(async (req: Request) => {
         created_at: new Date().toISOString()
       });
 
-      // Return the mapped response body if mapping was applied, otherwise return original text
       const finalResponse = typeof responseBody === 'object'
         ? JSON.stringify(responseBody)
         : responseText;
@@ -884,7 +935,6 @@ async function logRequest(supabase: any, logData: any) {
 function generateCacheKey(url: string, body: any): string {
   const data = `${url}:${JSON.stringify(body || {})}`;
 
-  // Simple hash function (FNV-1a)
   let hash = 2166136261;
   for (let i = 0; i < data.length; i++) {
     hash ^= data.charCodeAt(i);
@@ -897,17 +947,14 @@ function generateCacheKey(url: string, body: any): string {
 function applyResponseMapping(responseData: any, mappingConfig: any): any {
   const { transformations } = mappingConfig;
 
-  // If transformations are provided, use them to build the output structure
   if (transformations && Array.isArray(transformations) && transformations.length > 0) {
     const isArray = Array.isArray(responseData);
     const dataArray = isArray ? responseData : [responseData];
     const results = [];
 
     for (const item of dataArray) {
-      // Start with empty object and build from transformations
       const mappedItem: any = {};
 
-      // Apply transformations to build the output
       for (const transform of transformations) {
         const value = evaluateExpression(transform.expression, item);
         setNestedValue(mappedItem, transform.field, value);
@@ -919,7 +966,6 @@ function applyResponseMapping(responseData: any, mappingConfig: any): any {
     return isArray ? results : results[0];
   }
 
-  // If no transformations, return original
   return responseData;
 }
 
