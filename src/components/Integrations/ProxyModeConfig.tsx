@@ -1,10 +1,10 @@
-import { ArrowRight, Database } from 'lucide-react';
+import { ArrowRight, Database, RefreshCw } from 'lucide-react';
 
 interface ProxyModeConfigProps {
-  proxyMode: 'direct' | 'post_process';
+  proxyMode: 'direct' | 'post_process' | 'fetch_and_forward';
   postProcessApiId: string;
   apis: Array<{ id: string; name: string }>;
-  onChange: (mode: 'direct' | 'post_process', apiId: string) => void;
+  onChange: (mode: 'direct' | 'post_process' | 'fetch_and_forward', apiId: string) => void;
 }
 
 export function ProxyModeConfig({ proxyMode, postProcessApiId, apis, onChange }: ProxyModeConfigProps) {
@@ -59,6 +59,34 @@ export function ProxyModeConfig({ proxyMode, postProcessApiId, apis, onChange }:
               </div>
             </div>
           </label>
+
+          <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer hover:bg-slate-800/70 transition-colors">
+            <input
+              type="radio"
+              name="proxy_mode"
+              value="fetch_and_forward"
+              checked={proxyMode === 'fetch_and_forward'}
+              onChange={(e) => onChange(e.target.value as any, '')}
+              className="text-blue-500"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 text-sm font-medium text-white mb-1">
+                <RefreshCw className="w-4 h-4 text-purple-400" />
+                Fetch and Forward (Sync Mode)
+              </div>
+              <p className="text-xs text-slate-400">
+                Gateway fetches data from source API → Forwards that data to target API → Returns target response
+              </p>
+              <div className="mt-2 text-xs text-slate-500 font-mono">
+                Cron/Client → Gateway → Source API (GET) → Target API (POST) → Client
+              </div>
+              <div className="mt-2 bg-purple-500/10 border border-purple-500/20 rounded px-2 py-1">
+                <p className="text-xs text-purple-300">
+                  <strong>Perfect for:</strong> Scheduled syncs, data migration, automatic polling
+                </p>
+              </div>
+            </div>
+          </label>
         </div>
       </div>
 
@@ -91,10 +119,13 @@ export function ProxyModeConfig({ proxyMode, postProcessApiId, apis, onChange }:
         <ul className="list-disc list-inside space-y-1 text-amber-400/80">
           <li><strong>Direct:</strong> Simple API proxy, webhook receiver, public API gateway</li>
           <li><strong>Post-Process:</strong> Data enrichment, validation, transformation, multi-step workflows</li>
+          <li><strong>Fetch and Forward:</strong> Scheduled syncs, data replication, automated data migration</li>
         </ul>
         <p className="text-amber-400/60 mt-2">
-          Example: Receive payment webhook from MercadoPago (target) → Enrich with customer data from your DB →
-          Send to notification service (post-process)
+          <strong>Examples:</strong><br/>
+          • Direct: Receive Stripe webhook → Forward to your billing system<br/>
+          • Post-Process: Get weather data → Translate → Cache → Return to client<br/>
+          • Fetch and Forward: Every hour, get users from System A → Sync to System B
         </p>
       </div>
     </div>

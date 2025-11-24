@@ -37,7 +37,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
   const [forwardHeaders, setForwardHeaders] = useState<string[]>(['']);
   const [pathParams, setPathParams] = useState<Array<{ param: string; source: string; path: string }>>([]);
   const [queryParams, setQueryParams] = useState<Array<{ name: string; source: 'url_query' | 'body' | 'header'; path: string; required?: boolean; default?: any }>>([]);
-  const [proxyMode, setProxyMode] = useState<'direct' | 'post_process'>('direct');
+  const [proxyMode, setProxyMode] = useState<'direct' | 'post_process' | 'fetch_and_forward'>('direct');
   const [postProcessApiId, setPostProcessApiId] = useState('');
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export function IntegrationForm({ integration, apis, onClose }: IntegrationFormP
       }
 
       if (integration.proxy_mode) {
-        setProxyMode(integration.proxy_mode as 'direct' | 'post_process');
+        setProxyMode(integration.proxy_mode as 'direct' | 'post_process' | 'fetch_and_forward');
       }
 
       if (integration.post_process_api_id) {
